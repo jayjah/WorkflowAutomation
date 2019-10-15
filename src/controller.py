@@ -1,17 +1,21 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import sys
 
 from com.dtmilano.android.viewclient import ViewClient
 from subprocess import check_output
-from src.helper import *
 import threading
 import time
 import re
+import os
 
 
 # Handles all orders from device manager
 #   A device object controls a physical device
 # Slave
+from src.helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script
+
+
 class Device(threading.Thread):
     lock = threading.Lock()
     waiter = Waiter()
@@ -44,11 +48,10 @@ class Device(threading.Thread):
         try:
             Device.lock.acquire()
             kwargs1 = {'verbose': True, 'ignoresecuredevice': False}
-            kwargs2 = {'startviewserver': True, 'forceviewserveruse': False, 'autodump': False,
+            kwargs2 = {'autodump': False,
                        'ignoreuiautomatorkilled': True}
             device2, serialn2o = ViewClient.connectToDeviceOrExit(serialno=serialno, **kwargs1)
             vc2 = ViewClient(device2, serialn2o, **kwargs2)
-
             self.device = device2
             self.serialnoavc = serialn2o
             self.vc = vc2
@@ -93,14 +96,20 @@ class Device(threading.Thread):
         self.vc.dump(window=-1)
 
     # TODO
+    # checks if device is on home screen or on home menu
+    # at the moment it's not possible to differ between them
+    # maybe it's here a opportunity to verify screen with images
     def check_if_on_home_screen(self):
-        result = False
-        return result
+        result = self.check_if_screen_contains("launcher")
+        topactivity = self.get_top_activity()
+        if "launcher" in str(topactivity) or re.search("launcher", str(topactivity), re.IGNORECASE):
+            return True
+        else:
+            return False
 
-    # TODO
     def go_to_home_screen(self):
-        result = False
-        return result
+        self.device.shell('input keyevent KEYCODE_HOME')
+
 
     # TODO
     def check_if_on_home_menu(self):
@@ -109,8 +118,7 @@ class Device(threading.Thread):
 
     # TODO
     def go_to_home_menu(self):
-        result = False
-        return result
+        self.device.shell('input keyevent KEYCODE_MENU')
 
     def check_if_screen_contains(self, tosearch):
         result = None
@@ -276,9 +284,37 @@ class Device(threading.Thread):
         if self.device.isKeyboardShown():
             self.device.press('KEYCODE_BACK')
 
+    def start_wifi_settings(self):
+        return self._start_intent('android.settings.WIRELESS_SETTINGS')
+
+    def _start_intent(self, intentstr):
+        out = self.device.shell('am start -a '+str(intentstr))
+        if re.search(r"(Error type)|(Error: )|(Cannot find 'App')", out, re.IGNORECASE | re.MULTILINE):
+            return False
+        return True
+
+    def get_top_activity(self):
+        return self.device.shell("dumpsys activity | grep top-activity")
+
+    def say_something(self, text):
+        ViewClient.sayText("What day is today?", verbose=True)
+        self.vc.dump(window=-1, sleep=10)
+        time.sleep(10)
+
+    # TODO
+    def take_screenshot(self):
+        #image1 = self.device.takeSnapshot().save(os.getcwd()+'\\Screenshots\\'+'OS_version.png')
+        self.wait()
 
     def download_app(self, appname):
         result = False
+        self.vc.dump(window=-1)
+
+        print ("Settings should be open")
+        self.wait()
+        print self.check_if_on_home_screen()
+        print self.device.getFocusedWindow()
+        print self.device.getTopActivityName()
 
         for entry in self.vc.views:
             try:
@@ -334,11 +370,7 @@ class Device(threading.Thread):
         # wifi settings
         # ComponentName cn = new ComponentName("com.android.settings", "com.android.settings.wifi.WifiSettings");
 
-        package = 'com.android.chrome'
-        activity = 'com.google.android.apps.chrome.Main'
-        component = package + "/" + activity
-        uri = 'http://dtmilano.blogspot.com'
-        device.startActivity(component=component, uri=uri)
+
         device.press('HOME')
         VPS = "javascript:alert(document.getElementsByTagName('html')[0].innerHTML);"
         device.press('KEYCODE_DEL')
@@ -367,9 +399,11 @@ class DeviceManager(object):
         # all device serial numbers
         # index 0 in alldevs is device 0
         self.alldevs = []
+        self.alldevscounter = 0
         for device in self.adb_devices():
             if "devices" not in device and "device" not in device:
                 self.alldevs.append(device)
+                self.alldevscounter += 1
 
         # start threads if enough connected phones exist this session
         self.devices = {}
@@ -390,6 +424,8 @@ class DeviceManager(object):
                         "DeviceManager : Last device started, DeviceManager goes in watch mode and gives orders")
                     self.run()
         else:
+            debug_print("should init phones: " + str(self.model.countercars))
+            debug_print("connected phones: " + str(self.alldevscounter))
             debug_error_print("Not enough phones connected!", "Connect more phones or maybe put another value in "
                                                               "config settings")
             print_and_exit_script()
@@ -546,7 +582,6 @@ class Controller(object):
         debug_print("init Controller")
         self.model = Model()
         print self.model.__str__()
-        debug_print("should init phones: " + str(self.model.countercars))
         self.devicemanager = DeviceManager(self.model)
         debug_print("init Controller succesfully")
 

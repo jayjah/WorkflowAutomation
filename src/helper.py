@@ -1,11 +1,12 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from enum import Enum
 from ConfigParser import SafeConfigParser
 import sys
 
 # Strings
+from enum import Enum
+
 settings_menu = u'''Einstellungen'''
 keyboard_enter = 'KEYCODE_ENTER'
 
@@ -205,10 +206,6 @@ class Waiter(object):
 # Enum for handling waiting state
 #   number displays seconds to wait
 class WaitState(Enum):
-    def __init__(self, *keys, **kwargs):
-        super(WaitState, self).__init__(*keys, **kwargs)
-        self.value = None
-
     veryshot = 1.5
     short = 3
     middle = 5
