@@ -1,14 +1,12 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import re
 import sys
-
-from com.dtmilano.android.viewclient import ViewClient
-from subprocess import check_output
 import threading
 import time
-import re
-import os
+from subprocess import check_output
 
+from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
 
 # Handles all orders from device manager
 #   A device object controls a physical device
@@ -26,7 +24,6 @@ class Device(threading.Thread):
     wifipw = None
     installappsappstore = []
 
-
     def __init__(self, number, serialno, telephonenummber=None):
         threading.Thread.__init__(self)
 
@@ -34,7 +31,7 @@ class Device(threading.Thread):
         self.isdone = False
         self.initialized = False
         self.isnotallreadyloggedin = False
-        #elf.wifistate = Error()
+        # elf.wifistate = Error()
         self.installedappsappstore = 0
 
         self.currentdevice = number
@@ -73,10 +70,13 @@ class Device(threading.Thread):
             if self.initialized and not self.isnotallreadyloggedin and Device.wifissid is not None and Device.wifipw is not None:
                 self.wifi_login()
 
-            if self.initialized and len(Device.installappsappstore) != 0 and len(Device.installappsappstore) != self.installedappsappstore:
+            if self.initialized and len(Device.installappsappstore) != 0 and len(
+                    Device.installappsappstore) != self.installedappsappstore:
                 self.download_app(Device.installappsappstore[self.installedappsappstore])
                 self.installedappsappstore += 1
+                time.sleep(1)
 
+            # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
                 self.initialized) + ", isdone: " + str(self.isdone) + ", wifi enabled : " + str(
                 self.isnotallreadyloggedin) + " ] ")
@@ -90,9 +90,13 @@ class Device(threading.Thread):
             self.device.press('BACK')
 
     # Waits
-    def wait(self):
-        self.vc.sleep(Device.waiter.currentwaiter)
-        time.sleep(Device.waiter.currentwaiter)
+    def wait(self, sec=None):
+        if sec is None:
+            self.vc.sleep(Device.waiter.currentwaiter)
+            time.sleep(Device.waiter.currentwaiter)
+        else:
+            self.vc.sleep(sec)
+            time.sleep(sec)
         self.vc.dump(window=-1)
 
     # TODO
@@ -110,41 +114,53 @@ class Device(threading.Thread):
     def go_to_home_screen(self):
         self.device.shell('input keyevent KEYCODE_HOME')
 
-
     # TODO
     def check_if_on_home_menu(self):
         result = False
         return result
 
-    # TODO
     def go_to_home_menu(self):
-        self.device.shell('input keyevent KEYCODE_MENU')
+        self.swipe_up_adb()
 
-    def check_if_screen_contains(self, tosearch):
+    def check_if_screen_contains(self, tosearch, ignoretextfields=False):
         result = None
         Device.lock.acquire()
-        list = self.vc.views
-        for entry in list:
-            # try:
-            #    print (entry)
-            # except:
-            #    print ("error in view")
-            # TODO crawl ... search in whole screen
-            # split if conition with None check and then return on success
-            if entry is not None and entry.isClickable():
-                contentdesc = entry.getContentDescription()
-                text = entry.getText()
-                tag = entry.getTag()
-                uniqid = entry.getUniqueId()
-                if contentdesc is not None and (tosearch in contentdesc or re.search(tosearch, contentdesc, re.IGNORECASE)):
-                    result = uniqid
-                if text is not None and (tosearch in text or re.search(tosearch, text, re.IGNORECASE)):
-                    result = uniqid
-                if tag is not None and (tosearch in tag or re.search(tosearch, tag, re.IGNORECASE)):
-                    result = uniqid
-                if uniqid is not None and (tosearch in uniqid or re.search(tosearch, uniqid, re.IGNORECASE)):
-                    result = uniqid
+        #list =
+        for entry in self.vc.views:
+            if not ignoretextfields:
+                if entry is not None and entry.isClickable():
+                    id = self._get_proper_viewid(entry, tosearch)
+                    if id is not None:
+                        result = id
+            else:
+                if entry is not None and entry.isClickable() and (
+                        isinstance(entry, EditText) or isinstance(entry, TextView)):
+                    id = self._get_proper_viewid(entry, tosearch)
+                    if id is not None:
+                        result = id
         Device.lock.release()
+        return result
+
+    def _get_proper_viewid(self, entry, tosearch):
+        result = None
+        contentdesc = entry.getContentDescription()
+        text = entry.getText()
+        tag = entry.getTag()
+        uniqid = entry.getUniqueId()
+        if contentdesc is not None and (tosearch in contentdesc or re.search(tosearch, contentdesc, re.IGNORECASE)):
+            result = uniqid
+            return result
+        if text is not None and (tosearch in text or re.search(tosearch, text, re.IGNORECASE)):
+            result = uniqid
+            return result
+        if tag is not None and (tosearch in tag or re.search(tosearch, tag, re.IGNORECASE)):
+            result = uniqid
+            return result
+        if uniqid is not None and (tosearch in uniqid or re.search(tosearch, uniqid, re.IGNORECASE)):
+            result = uniqid
+            return result
+        if self.vc.findViewWithAttributeThatMatches("text", re.compile(tosearch)):
+            result = uniqid
         return result
 
     def find_by_id(self, searchtext):
@@ -161,9 +177,9 @@ class Device(threading.Thread):
         self.vc.findViewByIdOrRaise(searchtext).type(texttotype)
         self.wait()
 
-    def touch_by_text(self, searchtext):
+    def touch_by_text(self, searchtext, androidviewclientvariant=False):
         viewid = self.check_if_screen_contains(searchtext)
-        if viewid is not None:
+        if viewid is not None and not androidviewclientvariant:
             self.vc.findViewByIdOrRaise(viewid).touch()
         else:
             self.vc.findViewWithTextOrRaise(searchtext).touch()
@@ -214,6 +230,10 @@ class Device(threading.Thread):
                 if search in entry.getText():
                     result = entry.getUniqueId()
         return result
+
+    def kill_all_running_apps(self):
+        self.device.shell(
+            'ps | grep -v root | grep -v system | grep -v "android.process." | grep -v radio | grep -v "com.google.process." | grep -v "com.lge." | grep -v shell | grep -v NAME | awk "{print $NF}" | tr "\r" " " | xargs kill')
 
     # Enables wifi with given data from model
     def wifi_login(self):
@@ -275,10 +295,15 @@ class Device(threading.Thread):
         self.vc.dump(window=-1)
         return result
 
+    def enter_text_adb(self, text):
+        self.device.shell('input text ' + text)
+
+    # works on samsung a10
+    def swipe_up_adb(self):
+        self.device.shell('input swipe 300 1000 300 500')
+
     def unlock_self(self):
-        self.vc.dump(window=-1)
-        self.device.unlock()
-        self.wait()
+        self.device.shell('adb shell input keyevent 26')
 
     def dismiss_keyboard(self):
         if self.device.isKeyboardShown():
@@ -287,8 +312,30 @@ class Device(threading.Thread):
     def start_wifi_settings(self):
         return self._start_intent('android.settings.WIRELESS_SETTINGS')
 
+    def start_sound_settings(self):
+        return self._start_intent('android.settings.SOUND_SETTINGS')
+
+    def start_location_settings(self):
+        return self._start_intent('android.settings.LOCATION_SOURCE_SETTINGS')
+
+    def start_battery_optimization_settings(self):
+        return self._start_intent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS')
+
+    # TODO click on "Zulassen" to fulfill this function
+    def disable_battery_optimization_driverapp(self):
+        return self._start_intent(
+            'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS -d package:com.talex.mytaxidriver')
+
+    def start_play_store(self, appname):
+        result = self._start_intent('android.intent.action.VIEW -d market://details?id=' + appname)
+        if result:
+            # if self.check_if_screen_contains("Play")
+            return True
+        else:
+            return False
+
     def _start_intent(self, intentstr):
-        out = self.device.shell('am start -a '+str(intentstr))
+        out = self.device.shell('am start -a ' + str(intentstr))
         if re.search(r"(Error type)|(Error: )|(Cannot find 'App')", out, re.IGNORECASE | re.MULTILINE):
             return False
         return True
@@ -296,57 +343,54 @@ class Device(threading.Thread):
     def get_top_activity(self):
         return self.device.shell("dumpsys activity | grep top-activity")
 
+    # TODO should work, but no audio is present
     def say_something(self, text):
-        ViewClient.sayText("What day is today?", verbose=True)
+        ViewClient.sayText(text, verbose=True)
         self.vc.dump(window=-1, sleep=10)
         time.sleep(10)
 
     # TODO
-    def take_screenshot(self):
-        #image1 = self.device.takeSnapshot().save(os.getcwd()+'\\Screenshots\\'+'OS_version.png')
-        self.wait()
+    #def take_screenshot(self):
+        # image1 = self.device.takeSnapshot().save(os.getcwd()+'\\Screenshots\\'+'OS_version.png')
+        # adb:
+        # adb shell screencap /sdcard/screen.png
+        # self.wait()
+
+    def _check_if_app_is_installed(self, packagename):
+        return self.device.shell('pm list packages | grep ' + packagename)
 
     def download_app(self, appname):
         result = False
         self.vc.dump(window=-1)
-
-        print ("Settings should be open")
+        print "should start play store with: " + str(appname)
+        self.start_play_store(appname)
         self.wait()
-        print self.check_if_on_home_screen()
-        print self.device.getFocusedWindow()
-        print self.device.getTopActivityName()
-
-        for entry in self.vc.views:
-            try:
-                print (entry)
-            except:
-                print ("error in view")
-
-        time.sleep(10)
-
-
-
-        self.touch_by_text(appname)
-
-        self.vc.findViewWithText(appname)
-
-
-
-        self.touch_by_text(u'''Play Store''')
-        if self.search_app_in_appstore(appname):
-            self.touch_by_text(u'Installieren')
+        deinstall = self.check_if_screen_contains("Deinstallieren")
+        if deinstall is not None:
+            self.go_to_home_screen()
+            return True
+        install = self.find_by_text("Installieren")
+        if install:
+            self.touch_by_text("Installieren", True)
             if self.find_by_text(u'Weiter') is not None:
-                self.touch_by_text(u'WEITER')
-                self.touch_by_text(u'ÜBERSPRINGEN')
-            self.go_back(3)
+                try:
+                    self.touch_by_text(u'WEITER')
+                    self.touch_by_text(u'ÜBERSPRINGEN')
+                except:
+                    print ("Error")
             result = True
-        else:
-            self.go_back(1)
+            self.wait(10)
+
+        isinstalled = self._check_if_app_is_installed(appname)
+        if isinstalled is not None:
+            result = True
+        self.go_to_home_screen()
         return result
 
+    # not used any more!
     def search_app_in_appstore(self, appname):
         result = False
-        print ("SEARCH IN TEXT: "+str(appname))
+        print ("SEARCH IN TEXT: " + str(appname))
         self.vc.dump(window=-1)
 
         if self.find_by_text(u'Nach Apps & Spielen suchen') is None:
@@ -359,22 +403,10 @@ class Device(threading.Thread):
         self.device.press(keyboard_enter)
         if self.find_by_text(appname) is None and self.find_by_text(u'Meintest du:') is not None:
             self.touch_by_text(u'Meintest du:')
-        #self.touch_by_text(appname)
-        #self.vc.findViewWithText(appname)
+        # self.touch_by_text(appname)
+        # self.vc.findViewWithText(appname)
         result = True
         return result
-
-    # TODO
-    # is it really useful?
-    def usefull_stuff(self, device):
-        # wifi settings
-        # ComponentName cn = new ComponentName("com.android.settings", "com.android.settings.wifi.WifiSettings");
-
-
-        device.press('HOME')
-        VPS = "javascript:alert(document.getElementsByTagName('html')[0].innerHTML);"
-        device.press('KEYCODE_DEL')
-        device.type(VPS)
 
 
 # Handles all devices, give orders to devices for given config
@@ -445,17 +477,16 @@ class DeviceManager(object):
         debug_print("DeviceManager : All devices are initialized")
 
         # enable wifi if flag is set
-        #if self.model.loginwifi:
+        # if self.model.loginwifi:
         #    debug_print("DeviceManager : Starting Wifi on connected devices")
         #    # save result for measures
         #    self.resultswifi.update(self.enable_wifi_mode())
         #    time.sleep(10)
 
-        if len(self.model.installappsps)>0:
+        if len(self.model.installappsps) > 0:
             debug_print("DeviceManager : Install apps from Play Store")
             self.resultsinstallappsps.update(self.install_apps_from_playstore())
             time.sleep(10)
-
 
         # create google acc if flag is set
         if self.model.creategoogleaccount:
@@ -463,7 +494,6 @@ class DeviceManager(object):
             # save result data
             self.resultsgoogleacc.update()
             time.sleep(10)
-
 
         # prints results
         print "RESUUULT WIFI:"

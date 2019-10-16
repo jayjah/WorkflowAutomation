@@ -9,6 +9,7 @@ from enum import Enum
 
 settings_menu = u'''Einstellungen'''
 keyboard_enter = 'KEYCODE_ENTER'
+keyboard_delete = 'KEYCODE_DEL'
 
 
 # Global write functions to display something on terminal
