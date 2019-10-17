@@ -3,6 +3,7 @@
 import re
 import sys
 import threading
+import os
 import time
 from subprocess import check_output
 
@@ -45,8 +46,11 @@ class Device(threading.Thread):
         try:
             Device.lock.acquire()
             kwargs1 = {'verbose': True, 'ignoresecuredevice': False}
-            kwargs2 = {'autodump': False,
-                       'ignoreuiautomatorkilled': True}
+            #kwargs2 = {'autodump': False,
+            #           'ignoreuiautomatorkilled': True}
+            kwargs2 = {'forceviewserveruse': False, 'useuiautomatorhelper': False, 'ignoreuiautomatorkilled': True,
+                       'autodump': False, 'startviewserver': True, 'compresseddump': True}
+
             device2, serialn2o = ViewClient.connectToDeviceOrExit(serialno=serialno, **kwargs1)
             vc2 = ViewClient(device2, serialn2o, **kwargs2)
             self.device = device2
@@ -231,6 +235,7 @@ class Device(threading.Thread):
                     result = entry.getUniqueId()
         return result
 
+    # TODO doesnt work
     def kill_all_running_apps(self):
         self.device.shell(
             'ps | grep -v root | grep -v system | grep -v "android.process." | grep -v radio | grep -v "com.google.process." | grep -v "com.lge." | grep -v shell | grep -v NAME | awk "{print $NF}" | tr "\r" " " | xargs kill')
@@ -292,6 +297,8 @@ class Device(threading.Thread):
     # TODO
     def create_google_account(self):
         result = False
+        self.start_creating_google_acc()
+
         self.vc.dump(window=-1)
         return result
 
@@ -300,7 +307,11 @@ class Device(threading.Thread):
 
     # works on samsung a10
     def swipe_up_adb(self):
-        self.device.shell('input swipe 300 1000 300 500')
+        disp_inf = self.device.getDisplayInfo()
+        w = disp_inf["width"]
+        h = disp_inf["height"]
+        self.device.drag((0.5*w, 0.9*h),(0.5*w, 0.4*h), 300)
+        #self.device.shell('input swipe 300 1000 300 500')
 
     def unlock_self(self):
         self.device.shell('adb shell input keyevent 26')
@@ -334,6 +345,15 @@ class Device(threading.Thread):
         else:
             return False
 
+    def start_creating_google_acc(self):
+        result = self._start_intent('android.settings.ADD_ACCOUNT_SETTINGS --es "account_types" "google.com"')
+        self.wait(1)
+        if result:
+            self.touch_by_text("Google", True)
+            return True
+        else:
+            return False
+
     def _start_intent(self, intentstr):
         out = self.device.shell('am start -a ' + str(intentstr))
         if re.search(r"(Error type)|(Error: )|(Cannot find 'App')", out, re.IGNORECASE | re.MULTILINE):
@@ -345,19 +365,55 @@ class Device(threading.Thread):
 
     # TODO should work, but no audio is present
     def say_something(self, text):
-        ViewClient.sayText(text, verbose=True)
-        self.vc.dump(window=-1, sleep=10)
-        time.sleep(10)
+        ViewClient.sayText(text)
+        self.vc.dump(window=-1, sleep=3)
+        time.sleep(3)
 
     # TODO
-    #def take_screenshot(self):
-        # image1 = self.device.takeSnapshot().save(os.getcwd()+'\\Screenshots\\'+'OS_version.png')
+    # works but afterwards it will crash, reason currently unknown
+    # so at the moment don't use this function
+    def take_screenshot(self):
+        #self.device.shell('exec-out screencap -p > screen.png')
+        image1 = self.device.takeSnapshot().save(os.getcwd()+'/ImagesFromDevice/test.png', 'PNG')
+        try:
+            self.vc.dump(window=-1, sleep=3)
+        except:
+            print "Error happened after took screenshot"
         # adb:
         # adb shell screencap /sdcard/screen.png
         # self.wait()
 
+    def increase_screen_brigthness(self):
+        self.device.shell('input keyevent 221')
+
+    def increase_standard_volume(self):
+        self.device.shell('input keyevent 24')
+
+    def get_current_packagename(self):
+        try:
+            activity = self.get_top_activity()
+            result = activity.split("/")
+            result2 = result[2].split(':')
+            packagename = result2[2]
+            return packagename
+        except:
+            return None
+
+    def destroy_current_running_app(self):
+        app = self.get_current_packagename()
+        if app is not None:
+            self.device.shell('am force-stop '+app)
+            return True
+        else:
+            return False
+
+
     def _check_if_app_is_installed(self, packagename):
-        return self.device.shell('pm list packages | grep ' + packagename)
+        package =  self.device.shell('pm list packages | grep ' + packagename)
+        if package in packagename:
+            return True
+        else:
+            return False
 
     def download_app(self, appname):
         result = False
@@ -365,6 +421,7 @@ class Device(threading.Thread):
         print "should start play store with: " + str(appname)
         self.start_play_store(appname)
         self.wait()
+        self.destroy_current_running_app()
         deinstall = self.check_if_screen_contains("Deinstallieren")
         if deinstall is not None:
             self.go_to_home_screen()
