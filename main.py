@@ -3,16 +3,7 @@
 
 
 def create_google_acc(firstname, lastname, vc, device):
-    vc = wait(vc)
-    vc.findViewWithTextOrRaise(u'''Einstellungen''').touch()
-    vc = wait(vc)
-    open_in_settings("Konten", vc)
-    vc = wait(vc)
-    vc.findViewWithTextOrRaise(u'''Konten''').touch()
-    vc = wait(vc)
-    vc.findViewWithTextOrRaise(u'''Konto hinzufügen''').touch()
-    vc = wait(vc)
-    vc.findViewWithTextOrRaise(u'''Google''').touch()
+
     # wait here longer cause of request to google
     vc.sleep(8)
     vc.dump(window=-1)

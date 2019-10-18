@@ -512,7 +512,7 @@ class Device(threading.Thread):
         self.wait(1)
         return result
 
-    # not used any more!
+    # not used any more?!
     def search_app_in_appstore(self, appname):
         result = False
         print ("SEARCH IN TEXT: " + str(appname))
@@ -562,7 +562,7 @@ class DeviceManager(object):
                 self.alldevs.append(device)
                 self.alldevscounter += 1
 
-        # start threads if enough connected phones exist this session
+        # start threads/devices if enough connected phones exist
         self.devices = {}
         if self.check_phones_connected():
             for i in range(int(self.model.countercars)):
@@ -591,22 +591,24 @@ class DeviceManager(object):
     # Sets Class Flags in Device class to let the device threads do their job
     # Script - Flow
     def run(self):
+
         # waits till all devices are initialized
         while not self.alldevicesinitiliazed:
             # wait 5 sec
             # TODO check error state of all threads/devices and make error handling
-            time.sleep(5)
             self.check_if_all_devices_are_initialized()
-            debug_print("DeviceManager : Not all devices initialized")
+            debug_print("DeviceManager : ⌛ Not all devices are initialized")
+            time.sleep(5)
 
-        debug_print("DeviceManager : All devices are initialized")
+
+        debug_print("DeviceManager : ✅ All devices are initialized")
 
         # enable wifi if flag is set
         # if self.model.loginwifi:
-        #    debug_print("DeviceManager : Starting Wifi on connected devices")
+        #    debug_print("DeviceManager : Enable WiFi")
         #    # save result for measures
         #    self.resultswifi.update(self.enable_wifi_mode())
-        #    time.sleep(10)
+        #    time.sleep(5)
 
         if len(self.model.installappsps) > 0:
             debug_print("DeviceManager : Install apps from Play Store")
@@ -616,27 +618,30 @@ class DeviceManager(object):
 
         # create google acc if flag is set
         if self.model.creategoogleaccount:
-            debug_print("DeviceManager : Creating google accounts on connected devices")
+            debug_print("DeviceManager : Creating Google Accounts")
             # save result data
             self.resultsgoogleacc.update()
-            time.sleep(10)
-
-        # prints results
-        print "RESUUULT WIFI:"
-        print self.resultswifi
-        print "RESUUULT GOOGLEACCS:"
-        print self.resultsgoogleacc
+            time.sleep(5)
 
         # wait till all devices are done with their work
         while not self.alldevicesdone:
             if self.check_if_all_devices_are_initialized():
                 # wait 10 sec
-                time.sleep(10)
                 self.check_if_all_devices_are_done()
-                debug_print("DeviceManager : All devices are initialized. But Not all all of them are done")
+                debug_print("DeviceManager : ⌛️ All devices are initialized. But Not all all of them are done")
+
+                # TODO get all results from each device
+                # prints results
+                print "RESUUULT WIFI:"
+                print self.resultswifi
+                print "RESUUULT GOOGLEACCS:"
+                print self.resultsgoogleacc
+
+                time.sleep(10)
+
 
         # all devices are done
-        debug_print("DeviceManager : All devices are done")
+        debug_print("DeviceManager : ✅ All devices are done")
 
         # stop threads if their state is not finalized
         for thread in self.devices.values():
