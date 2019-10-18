@@ -9,12 +9,11 @@ from subprocess import check_output
 
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
 
-# Handles all orders from device manager
-#   A device object controls a physical device
-# Slave
 from src.helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script
 
-
+# Handles all orders from device manager
+#   A device object controls a physical device
+# Slave Class
 class Device(threading.Thread):
     lock = threading.Lock()
     waiter = Waiter()
@@ -124,7 +123,7 @@ class Device(threading.Thread):
         return result
 
     def go_to_home_menu(self):
-        self.swipe_up_adb()
+        self.swipe_up()
 
     def check_if_screen_contains(self, tosearch, ignoretextfields=False):
         result = None
@@ -151,21 +150,24 @@ class Device(threading.Thread):
         text = entry.getText()
         tag = entry.getTag()
         uniqid = entry.getUniqueId()
-        if contentdesc is not None and (tosearch in contentdesc or re.search(tosearch, contentdesc, re.IGNORECASE)):
-            result = uniqid
+        try:
+            if contentdesc is not None and (tosearch in contentdesc): # or re.search(tosearch, contentdesc, re.IGNORECASE)):
+                result = uniqid
+                return result
+            if text is not None and (tosearch in text or re.search(tosearch, text, re.IGNORECASE)):
+                result = uniqid
+                return result
+            if tag is not None and (tosearch in tag or re.search(tosearch, tag, re.IGNORECASE)):
+                result = uniqid
+                return result
+            if uniqid is not None and (tosearch in uniqid or re.search(tosearch, uniqid, re.IGNORECASE)):
+                result = uniqid
+                return result
+            if self.vc.findViewWithAttributeThatMatches("text", re.compile(tosearch)):
+                result = uniqid
             return result
-        if text is not None and (tosearch in text or re.search(tosearch, text, re.IGNORECASE)):
-            result = uniqid
+        except:
             return result
-        if tag is not None and (tosearch in tag or re.search(tosearch, tag, re.IGNORECASE)):
-            result = uniqid
-            return result
-        if uniqid is not None and (tosearch in uniqid or re.search(tosearch, uniqid, re.IGNORECASE)):
-            result = uniqid
-            return result
-        if self.vc.findViewWithAttributeThatMatches("text", re.compile(tosearch)):
-            result = uniqid
-        return result
 
     def find_by_id(self, searchtext):
         return True if self.vc.findViewById(searchtext) is not None else False
@@ -306,12 +308,17 @@ class Device(threading.Thread):
         self.device.shell('input text ' + text)
 
     # works on samsung a10
-    def swipe_up_adb(self):
+    def swipe_up(self):
         disp_inf = self.device.getDisplayInfo()
         w = disp_inf["width"]
         h = disp_inf["height"]
         self.device.drag((0.5*w, 0.9*h),(0.5*w, 0.4*h), 300)
-        #self.device.shell('input swipe 300 1000 300 500')
+
+    def swipe_down(self):
+        disp_inf = self.device.getDisplayInfo()
+        w = disp_inf["width"]
+        h = disp_inf["height"]
+        self.device.drag((0.5*w, 0.01*h),(0.5*w, 0.6*h), 300)
 
     def unlock_self(self):
         self.device.shell('adb shell input keyevent 26')
@@ -339,8 +346,11 @@ class Device(threading.Thread):
 
     def start_play_store(self, appname):
         result = self._start_intent('android.intent.action.VIEW -d market://details?id=' + appname)
+        self.wait(3)
         if result:
-            # if self.check_if_screen_contains("Play")
+            if self.find_by_text(u'Öffnen mit'):
+                self.touch_by_text(u'Google Play Store', True)
+                self.touch_by_text(u'Immer', True)
             return True
         else:
             return False
@@ -403,6 +413,7 @@ class Device(threading.Thread):
         app = self.get_current_packagename()
         if app is not None:
             self.device.shell('am force-stop '+app)
+            self.wait(2)
             return True
         else:
             return False
@@ -415,13 +426,69 @@ class Device(threading.Thread):
         else:
             return False
 
+    def configure_all_sound_settings(self):
+        try:
+            self.start_sound_settings()
+            self.wait(2)
+            self.touch_by_text(u'Lautstärke', True)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
+            self.wait(1)
+            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
+            self.wait(1)
+            self.destroy_current_running_app()
+            return True
+        except:
+            return False
+
+    def _check_permission_app(self):
+        if self.find_by_id("com.android.packageinstaller:id/permission_allow_button") is not False:
+            self.touch_by_id("com.android.packageinstaller:id/permission_allow_button")
+            self._check_permission_app()
+
+    def pair_driverapp(self):
+        self.device.shell('am start -n com.talex.mytaxidriver/.activities.main.MainActivity')
+        self.wait()
+        self._check_permission_app()
+        self.type_by_id("krebs@taxi.de", "com.talex.mytaxidriver:id/nickET")
+        self.type_by_id("acaac6", "com.talex.mytaxidriver:id/passET")
+        self.touch_by_id("com.talex.mytaxidriver:id/BtnLogin")
+        if self.find_by_id("android:id/search_button") is not False:
+            self.destroy_current_running_app()
+            return True
+        else:
+            self.wait(1)
+            return False
+
     def download_app(self, appname):
         result = False
         self.vc.dump(window=-1)
         print "should start play store with: " + str(appname)
         self.start_play_store(appname)
         self.wait()
-        self.destroy_current_running_app()
+        if self.find_by_text(u'Nicht gefunden'):
+            # TODO start searching app in normal search bar of play store
+            self.destroy_current_running_app()
+            return False
         deinstall = self.check_if_screen_contains("Deinstallieren")
         if deinstall is not None:
             self.go_to_home_screen()
@@ -429,7 +496,7 @@ class Device(threading.Thread):
         install = self.find_by_text("Installieren")
         if install:
             self.touch_by_text("Installieren", True)
-            if self.find_by_text(u'Weiter') is not None:
+            if self.find_by_text(u'Weiter') is not False:
                 try:
                     self.touch_by_text(u'WEITER')
                     self.touch_by_text(u'ÜBERSPRINGEN')
@@ -442,6 +509,7 @@ class Device(threading.Thread):
         if isinstalled is not None:
             result = True
         self.go_to_home_screen()
+        self.wait(1)
         return result
 
     # not used any more!
@@ -450,15 +518,15 @@ class Device(threading.Thread):
         print ("SEARCH IN TEXT: " + str(appname))
         self.vc.dump(window=-1)
 
-        if self.find_by_text(u'Nach Apps & Spielen suchen') is None:
+        if self.find_by_text(u'Nach Apps & Spielen suchen'):
             self.device.press(keyboard_enter)
-        if self.find_by_text(u'Nach Apps & Spielen suchen') is None:
+        if self.find_by_text(u'Nach Apps & Spielen suchen'):
             self.device.press(keyboard_enter)
         self.touch_by_text(u'Nach Apps & Spielen suchen')
         self.type_by_text(appname, u'Nach Apps & Spielen suchen')
         self.touch_by_text(appname)
         self.device.press(keyboard_enter)
-        if self.find_by_text(appname) is None and self.find_by_text(u'Meintest du:') is not None:
+        if self.find_by_text(appname) and self.find_by_text(u'Meintest du:'):
             self.touch_by_text(u'Meintest du:')
         # self.touch_by_text(appname)
         # self.vc.findViewWithText(appname)
@@ -467,7 +535,7 @@ class Device(threading.Thread):
 
 
 # Handles all devices, give orders to devices for given config
-# Master
+# Master Class
 class DeviceManager(object):
 
     def __init__(self, model):
@@ -515,7 +583,7 @@ class DeviceManager(object):
         else:
             debug_print("should init phones: " + str(self.model.countercars))
             debug_print("connected phones: " + str(self.alldevscounter))
-            debug_error_print("Not enough phones connected!", "Connect more phones or maybe put another value in "
+            debug_error_print("Something wrong here!", "Connect more phones or maybe put another value in "
                                                               "config settings")
             print_and_exit_script()
 
@@ -542,8 +610,9 @@ class DeviceManager(object):
 
         if len(self.model.installappsps) > 0:
             debug_print("DeviceManager : Install apps from Play Store")
-            self.resultsinstallappsps.update(self.install_apps_from_playstore())
-            time.sleep(10)
+            self.install_apps_from_playstore()
+            # TODO get results from devices and store them in self.results; check for errors
+            time.sleep(5)
 
         # create google acc if flag is set
         if self.model.creategoogleaccount:
@@ -564,7 +633,7 @@ class DeviceManager(object):
                 # wait 10 sec
                 time.sleep(10)
                 self.check_if_all_devices_are_done()
-                debug_print("DeviceManager : All devices are initialized. But Not all all of them are done are done")
+                debug_print("DeviceManager : All devices are initialized. But Not all all of them are done")
 
         # all devices are done
         debug_print("DeviceManager : All devices are done")
@@ -629,37 +698,25 @@ class DeviceManager(object):
 
     # enables wifi on all devices with given credentiels from models
     def enable_wifi_mode(self):
-        results = {}
-        # TODO dont block here to let it parallel running
         Device.lock.acquire()
-        # result = alldevices[i].wifi_login(self.model.wifissid, self.model.wifipw)
-        # alldevices[i].wifi_login(self.model.wifissid, self.model.wifipw)
         Device.wifissid = self.model.wifissid
         Device.wifipw = self.model.wifipw
-        time.sleep(1)
+        time.sleep(3)
         Device.lock.release()
         # results.update({i: result})
-        return results
 
     def install_apps_from_playstore(self):
-        results = {}
         Device.lock.acquire()
         Device.installappsappstore = str(self.model.installappsps).split(',')
-        print "Result of extending device strings"
-        print Device.installappsappstore
+        time.sleep(3)
         Device.lock.release()
-        return results
 
     # creates google accounts on all devices
     def enable_google_account(self):
-        results = {}
-        alldevices = self.devices.values()
-        for device in alldevices:
-            if device.initialized:
-                result = device.create_google_account()
-                # self.devices.get(i).wifi_login()
-                results.update({device.currentdevice: result})
-        return results
+        Device.lock.acquire()
+        Device.installappsappstore = str(self.model.creategoogleaccount)
+        time.sleep(3)
+        Device.lock.release()
 
 
 # Dummy - Main - Part
