@@ -34,6 +34,12 @@ def debug_error_print(mssage, error):
     print "--- ", error, " ----"
     print ("---------------------")
 
+# Class to hold gmail account settings in measures/log
+class AccountSettings(object):
+    def __init__(self, success, email, pw):
+        self.success = success
+        self.email = email
+        self.emailpassword = pw
 
 # Interactive class for getting config from user
 #   reads all values from terminal through an interactive session with an user
@@ -116,6 +122,8 @@ class Model:
         # configure settings config section
         self.configurepowersavingmode = False
         self.configurelockscreenapp = False
+        self.configurelocationsettings = False
+        self.configuresoundsettings = False
 
         # which mode should start ? (-c = Config Mode)
         if len(sys.argv) > 0 and sys.argv[1] == '-c':

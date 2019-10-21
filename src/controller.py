@@ -13,7 +13,7 @@ from subprocess import check_output
 
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
 
-from src.helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script
+from src.helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script, AccountSettings
 
 # Handles all orders from device manager
 #   A device object controls a physical device
@@ -29,6 +29,12 @@ class Device(threading.Thread):
     installappsappstore = []
     creategoogleaccount = False
     phonenumbersgiven = False
+    pairdriverapp = False
+    pairdriverappname = ''
+    pairdriverapppw = ''
+    configuresoundsettings = False
+    configurelocationsettings = False
+    configurepowersavingmode = False
 
     def __init__(self, number, serialno, telephonenummber=None):
         threading.Thread.__init__(self)
@@ -39,6 +45,7 @@ class Device(threading.Thread):
         self.wifienabled = False
         # elf.wifistate = Error()
         self.installedappsappstore = 0
+        self.installedapps = dict()
         self.googlefname = ''
         self.googlelname = ''
         self.googlebirthday = 0
@@ -47,6 +54,10 @@ class Device(threading.Thread):
         self.createdgoogleaccount = False
         self.email = ''
         self.password = ''
+        self.ispaired = False
+        self.soundconfigconfigured = False
+        self.locationconfigured = False
+        self.powersavingmodeconfigured = False
 
         # device specific settings
         self.currentdevice = number
@@ -82,7 +93,6 @@ class Device(threading.Thread):
 
     # Runner Method from slave
     def run(self):
-        # evice.lock.acquire()
         while not self.isdone:
 
             # wifi
@@ -91,7 +101,7 @@ class Device(threading.Thread):
                 self.wait(1)
 
             # create google account
-            if Device.creategoogleaccount and self.googlefname != '' and self.googlelname != '' and self.googlebirthday != 0 and self.googlebirthmonth != 0 and self.googlebirthmonth != 0 and self.email == '' and self.password == '':
+            if self.initialized and Device.creategoogleaccount and self.googlefname != '' and self.googlelname != '' and self.googlebirthday != 0 and self.googlebirthmonth != 0 and self.googlebirthmonth != 0 and self.email == '' and self.password == '':
                 self.createdgoogleaccount = self.create_google_account()
                 self.wait(1)
 
@@ -99,6 +109,7 @@ class Device(threading.Thread):
             if self.initialized and len(Device.installappsappstore) != 0 and len(
                     Device.installappsappstore) != self.installedappsappstore:
                 result = self.download_app(Device.installappsappstore[self.installedappsappstore])
+                self.installedapps[str(Device.installappsappstore[self.installedappsappstore])] = result
                 if result:
                     print "Installed app succesfully"
                 else:
@@ -106,14 +117,21 @@ class Device(threading.Thread):
                 self.installedappsappstore += 1
                 self.wait(1)
 
-            #TODO sound settings and location settings and pair driverapp and disable power saving mode for driverapp
+            # pair driver app
+            if self.initialized and Device.pairdriverapp and not self.ispaired and Device.pairdriverappname != '' and Device.pairdriverapppw != '':
+                self.ispaired = self.pair_driverapp()
+
+            # configure sound settings
+            if self.initialized and Device.configuresoundsettings and not self.soundconfigconfigured:
+                self.soundconfigconfigured = self.configure_all_sound_settings()
+
+            # TODO location settings and disable power saving mode for driverapp
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
                 self.initialized) + ", isdone: " + str(self.isdone) + ", enable wifi : " + str(
                 self.wifienabled) + ", create Google Acc: "+str(self.createdgoogleaccount)+"[ Google First Name: "+str(self.googlefname)+", Google Last Name: "+str(self.googlelname)+", Google Birthday: "+str(self.googlebirthday)+" ] ] ")
             time.sleep(1.3)
-        # Device.lock.release()
 
     # Goes back with android back button
     def go_back(self, times):
@@ -336,7 +354,6 @@ class Device(threading.Thread):
     def create_google_account(self):
         self.wait(1)
         result = False
-        print "CREATE"
         self.wait(1)
         if self.start_creating_google_acc():
             self.wait(1)
@@ -615,14 +632,16 @@ class Device(threading.Thread):
         self.device.shell('am start -n com.talex.mytaxidriver/.activities.main.MainActivity')
         self.wait()
         self._check_permission_app()
-        self.type_by_id("krebs@taxi.de", "com.talex.mytaxidriver:id/nickET")
-        self.type_by_id("acaac6", "com.talex.mytaxidriver:id/passET")
+        self.type_by_id(Device.pairdriverappname, "com.talex.mytaxidriver:id/nickET")
+        self.type_by_id(Device.pairdriverapppw, "com.talex.mytaxidriver:id/passET")
         self.touch_by_id("com.talex.mytaxidriver:id/BtnLogin")
         if self.find_by_id("android:id/search_button") is not False:
+            self.wait(1)
             self.destroy_current_running_app()
             return True
         else:
             self.wait(1)
+            self.destroy_current_running_app()
             return False
 
     def download_app(self, appname):
@@ -692,9 +711,10 @@ class DeviceManager(object):
         self.model = model
 
         # results from devices to metrics the result
-        self.resultswifi = {}
-        self.resultsgoogleacc = {}
-        self.resultsinstallappsps = {}
+        self.resultswifi = dict()
+        self.resultsgoogleacc = dict()
+        self.resultsinstallappsps = dict()
+        self.resultspaireddriverapp = dict()
 
         # all device serial numbers
         # index 0 in alldevs is device 0
@@ -709,8 +729,11 @@ class DeviceManager(object):
         self.devices = {}
         if self.check_phones_connected():
             for i in range(int(self.model.countercars)):
-
-                phonenumber = int(str(self.model.phonenumbers).split(',')[i])
+                phonenumber = None
+                if self.model.phonenumbersgiven:
+                    phonenumber = int(str(self.model.phonenumbers).split(',')[i])
+                else:
+                    phonenumber = int(str(self.model.phonenumbers).split(',')[0])
                 thread = Device(i, self.alldevs[i], phonenumber)
                 self.devices.update({i: thread})
                 thread.start()
@@ -744,44 +767,67 @@ class DeviceManager(object):
 
         debug_print("DeviceManager : ✅ All devices are initialized")
 
+        if self.model.configuresettings and self.model.configuresoundsettings:
+            debug_print("DeviceManager : Configure Sound Settings")
+            Device.lock.acquire()
+            Device.configuresoundsettings = True
+            Device.lock.release()
+
         # enable wifi if flag is set
         if bool(self.model.loginwifi):
             debug_print("DeviceManager : Enable WiFi")
-            # save result for measures/log
-            #self.resultswifi.update()
             self.enable_wifi_mode()
+            time.sleep(5)
+
+        # create google acc if flag is set
+        if self.model.creategoogleaccount:
+            debug_print("DeviceManager : Creating Google Account")
+            self.enable_google_account()
             time.sleep(5)
 
         if len(self.model.installappsps) > 0:
             debug_print("DeviceManager : Install apps from Play Store")
             self.install_apps_from_playstore()
-            # TODO get results from devices and store them in self.results; check for errors
             time.sleep(5)
 
-        # create google acc if flag is set
-        if self.model.creategoogleaccount:
-            debug_print("DeviceManager : Creating Google Accounts")
-            # save result data
-            #self.resultsgoogleacc.update()
-            self.enable_google_account()
+        if self.model.pairdriverapp:
+            debug_print("DeviceManager : Pair Driver App")
+            Device.lock.acquire()
+            Device.pairdriverapp = True
+            Device.pairdriverappname = self.model.drivername
+            Device.pairdriverapppw = self.model.driverpw
+            Device.lock.release()
             time.sleep(5)
 
         # wait till all devices are done with their work
         while not self.alldevicesdone:
             if self.check_if_all_devices_are_initialized():
-                # wait 10 sec
                 self.check_if_all_devices_are_done()
                 debug_print("DeviceManager : ⌛️ All devices are initialized. But Not all all of them are done")
 
-                # TODO get all results from each device
+                # store all results
+                for i in range(int(self.model.countercars)):
+                    self.resultswifi[self.devices.get(i).currentdevice] = self.devices.get(i).wifienabled
+
+                    googleaccsettings = AccountSettings(self.devices.get(i).createdgoogleaccount, self.devices.get(i).email, self.devices.get(i).password)
+                    self.resultsgoogleacc[self.devices.get(i).currentdevice] = googleaccsettings
+
+                    self.resultsinstallappsps[self.devices.get(i).currentdevice] = self.devices.get(i).installedapps
+
+                    self.resultspaireddriverapp[self.devices.get(i).currentdevice] = self.devices.get(i).ispaired
+
                 # prints results
                 print "RESUUULT WIFI:"
                 print self.resultswifi
                 print "RESUUULT GOOGLEACCS:"
                 print self.resultsgoogleacc
+                print "RESUUULT INSTALLEDAPPS:"
+                print self.resultsinstallappsps
+                print "RESUUULT PAIRED DRIVER APP"
+                print self.resultspaireddriverapp
 
+                # wait 10 sec
                 time.sleep(10)
-
 
         # all devices are done
         debug_print("DeviceManager : ✅ All devices are done")
@@ -849,14 +895,11 @@ class DeviceManager(object):
         Device.lock.acquire()
         Device.wifissid = self.model.wifissid
         Device.wifipw = self.model.wifipw
-        time.sleep(3)
         Device.lock.release()
-        # results.update({i: result})
 
     def install_apps_from_playstore(self):
         Device.lock.acquire()
         Device.installappsappstore = str(self.model.installappsps).split(',')
-        time.sleep(3)
         Device.lock.release()
 
     # creates google accounts on all devices
@@ -871,7 +914,6 @@ class DeviceManager(object):
             self.devices.get(i).googlebirthmonth = int(self.model.birthmonth)
             self.devices.get(i).googlebirthyear = int(self.model.birthyear)
         Device.lock.release()
-        time.sleep(3)
 
 
 # Dummy - Main - Part
