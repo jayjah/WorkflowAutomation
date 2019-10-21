@@ -80,7 +80,6 @@ class Model:
 
     def __init__(self):
         # cred config section
-        self.customername = ""
         self.taxicompany = False
         self.rentcompany = False
         self.countercars = 0
@@ -102,6 +101,8 @@ class Model:
         self.birthday = "00"
         self.birthmonth = "00"
         self.birthyear = "0000"
+        self.customerfirstname = ""
+        self.customerlastname = ""
 
         #       # install apps config section
         self.installappsps = []

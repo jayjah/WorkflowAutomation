@@ -1,10 +1,14 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import re
 import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
+import re
+import string
 import threading
 import os
 import time
+import random
 from subprocess import check_output
 
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
@@ -23,6 +27,8 @@ class Device(threading.Thread):
     wifissid = None
     wifipw = None
     installappsappstore = []
+    creategoogleaccount = False
+    phonenumbersgiven = False
 
     def __init__(self, number, serialno, telephonenummber=None):
         threading.Thread.__init__(self)
@@ -30,10 +36,19 @@ class Device(threading.Thread):
         # flags
         self.isdone = False
         self.initialized = False
-        self.isnotallreadyloggedin = False
+        self.wifienabled = False
         # elf.wifistate = Error()
         self.installedappsappstore = 0
+        self.googlefname = ''
+        self.googlelname = ''
+        self.googlebirthday = 0
+        self.googlebirthmonth = 0
+        self.googlebirthyear = 0
+        self.createdgoogleaccount = False
+        self.email = ''
+        self.password = ''
 
+        # device specific settings
         self.currentdevice = number
         self.serialno = serialno
         self.serialnoavc = None
@@ -42,8 +57,8 @@ class Device(threading.Thread):
 
         # action which could cause a deadlock or unsafe thread operation
         # not sure how viewclient react in python on multithreading that's why I put it in here
+        Device.lock.acquire()
         try:
-            Device.lock.acquire()
             kwargs1 = {'verbose': True, 'ignoresecuredevice': False}
             #kwargs2 = {'autodump': False,
             #           'ignoreuiautomatorkilled': True}
@@ -57,32 +72,46 @@ class Device(threading.Thread):
             self.vc = vc2
             self.vc.dump(window=-1)
             self.initialized = True
-            Device.lock.release()
 
         except:
             debug_error_print("Unexpected error:", sys.exc_info()[0])
             print sys.exc_info()
             debug_print("Could not start Device: " + str(self.currentdevice))
             self.isdone = True
+        Device.lock.release()
 
     # Runner Method from slave
     def run(self):
         # evice.lock.acquire()
         while not self.isdone:
 
-            if self.initialized and not self.isnotallreadyloggedin and Device.wifissid is not None and Device.wifipw is not None:
-                self.wifi_login()
+            # wifi
+            if self.initialized and not self.wifienabled and Device.wifissid is not None and Device.wifipw is not None:
+                self.wifienabled = self.wifi_login()
+                self.wait(1)
 
+            # create google account
+            if Device.creategoogleaccount and self.googlefname != '' and self.googlelname != '' and self.googlebirthday != 0 and self.googlebirthmonth != 0 and self.googlebirthmonth != 0 and self.email == '' and self.password == '':
+                self.createdgoogleaccount = self.create_google_account()
+                self.wait(1)
+
+            # install apps from play store
             if self.initialized and len(Device.installappsappstore) != 0 and len(
                     Device.installappsappstore) != self.installedappsappstore:
-                self.download_app(Device.installappsappstore[self.installedappsappstore])
+                result = self.download_app(Device.installappsappstore[self.installedappsappstore])
+                if result:
+                    print "Installed app succesfully"
+                else:
+                    print "Could not install app"
                 self.installedappsappstore += 1
-                time.sleep(1)
+                self.wait(1)
+
+            #TODO sound settings and location settings and pair driverapp and disable power saving mode for driverapp
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
-                self.initialized) + ", isdone: " + str(self.isdone) + ", wifi enabled : " + str(
-                self.isnotallreadyloggedin) + " ] ")
+                self.initialized) + ", isdone: " + str(self.isdone) + ", enable wifi : " + str(
+                self.wifienabled) + ", create Google Acc: "+str(self.createdgoogleaccount)+"[ Google First Name: "+str(self.googlefname)+", Google Last Name: "+str(self.googlelname)+", Google Birthday: "+str(self.googlebirthday)+" ] ] ")
             time.sleep(1.3)
         # Device.lock.release()
 
@@ -129,40 +158,52 @@ class Device(threading.Thread):
         result = None
         Device.lock.acquire()
         #list =
+        print "Views"
         for entry in self.vc.views:
+            try:
+                print str(entry)
+            except:
+                print "error in view"
             if not ignoretextfields:
                 if entry is not None and entry.isClickable():
                     id = self._get_proper_viewid(entry, tosearch)
-                    if id is not None:
+                    if id is not None :
                         result = id
+                        return result
             else:
                 if entry is not None and entry.isClickable() and (
                         isinstance(entry, EditText) or isinstance(entry, TextView)):
                     id = self._get_proper_viewid(entry, tosearch)
                     if id is not None:
                         result = id
+                        return result
         Device.lock.release()
         return result
 
     def _get_proper_viewid(self, entry, tosearch):
         result = None
+        resourceid = entry.getId()
         contentdesc = entry.getContentDescription()
         text = entry.getText()
         tag = entry.getTag()
         uniqid = entry.getUniqueId()
         try:
-            if contentdesc is not None and (tosearch in contentdesc): # or re.search(tosearch, contentdesc, re.IGNORECASE)):
+            if contentdesc is not None and tosearch in contentdesc: # or re.search(tosearch, contentdesc, re.IGNORECASE)):
                 result = uniqid
                 return result
-            if text is not None and (tosearch in text or re.search(tosearch, text, re.IGNORECASE)):
+            if text is not None and tosearch in text: # or re.search(tosearch, text, re.IGNORECASE)):
                 result = uniqid
                 return result
-            if tag is not None and (tosearch in tag or re.search(tosearch, tag, re.IGNORECASE)):
+            if tag is not None and tosearch in tag: # or re.search(tosearch, tag, re.IGNORECASE)):
                 result = uniqid
                 return result
-            if uniqid is not None and (tosearch in uniqid or re.search(tosearch, uniqid, re.IGNORECASE)):
+            if uniqid is not None and tosearch in uniqid: # or re.search(tosearch, uniqid, re.IGNORECASE)):
                 result = uniqid
                 return result
+            if resourceid is not None and tosearch in resourceid:
+                print("Resourceid: " + str(resourceid))
+
+                return uniqid
             if self.vc.findViewWithAttributeThatMatches("text", re.compile(tosearch)):
                 result = uniqid
             return result
@@ -184,17 +225,20 @@ class Device(threading.Thread):
         self.wait()
 
     def touch_by_text(self, searchtext, androidviewclientvariant=False):
-        viewid = self.check_if_screen_contains(searchtext)
-        if viewid is not None and not androidviewclientvariant:
-            self.vc.findViewByIdOrRaise(viewid).touch()
+        if not androidviewclientvariant:
+            viewid = self.check_if_screen_contains(searchtext)
+            if viewid is not None:
+                self.vc.findViewByIdOrRaise(viewid).touch()
         else:
             self.vc.findViewWithTextOrRaise(searchtext).touch()
         self.wait()
 
-    def type_by_text(self, texttotype, searchtext):
-        viewid = self.check_if_screen_contains(searchtext)
-        if viewid is not None:
-            self.vc.findViewByIdOrRaise(viewid).type(texttotype)
+    def type_by_text(self, texttotype, searchtext, androidviewclient=False):
+        if not androidviewclient:
+            viewid = self.check_if_screen_contains(searchtext)
+            if viewid is not None:
+                print ("ID of view: "+str(viewid)+"to text: "+str(texttotype) )
+                self.vc.findViewByIdOrRaise(viewid).type(texttotype)
         else:
             self.vc.findViewWithTextOrRaise(searchtext).type(texttotype)
         self.wait()
@@ -229,12 +273,14 @@ class Device(threading.Thread):
         result = None
         if views is not None and search is not None:
             for entry in views:
+                text = entry.getText().encode('utf-8')
                 try:
-                    print (entry)
+                    print str(entry).encode('utf-8')
+                    if entry is not None and text is not None and entry.isClickable() and search in text:
+                        result = entry.getUniqueId()
                 except:
                     print ("error in view")
-                if search in entry.getText():
-                    result = entry.getUniqueId()
+
         return result
 
     # TODO doesnt work
@@ -245,67 +291,166 @@ class Device(threading.Thread):
     # Enables wifi with given data from model
     def wifi_login(self):
         result = False
-
-        Device.lock.acquire()
-        Device.waiter.setwaitveryshort()
-        Device.lock.release()
         try:
-            self.vc.dump(window=-1)
-
-            self.wait()
-            self.touch_by_text(u'''Einstellungen''')
-            self.open_in_settings("Verbindungen")
-            self.open_in_settings("WLAN")
-            # vc.findViewWithTextOrRaise(u'''WLAN''').touch()
+            self.wait(1)
+            self.start_wifi_settings()
+            self.wait(1)
+            self.touch_by_text("WLAN", True)
             if self.find_by_text(u'Ein'):
-                Device.lock.acquire()
-                Device.waiter.setwaitveryshort()
-                Device.lock.release()
-                self.go_back(2)
-                self.isnotallreadyloggedin = True
                 return True
-            Device.lock.acquire()
-            Device.waiter.setwaitmiddle()
-            Device.lock.release()
+
             if not self.open_in_settings("Aus"):
-                self.go_back(2)
-                self.isnotallreadyloggedin = True
                 return True
-            Device.lock.acquire()
-            Device.waiter.setwaitveryshort()
-            Device.lock.release()
-            id = self.check_if_screen_contains(Device.wifissid)
-            if id is not None:
-                self.touch_by_text(id)
+            self.wait(3)
+
+            viewid = None
+            for entry in self.vc.views:
+                text = entry.getText().encode('utf-8')
+                try:
+                    print str(entry).encode('utf-8')
+                    if entry is not None and text is not None and Device.wifissid in text:
+                        viewid = entry.getUniqueId()
+                except:
+                    print ("error in view")
+
+            print("View with ssid of taxi.de: "+str(viewid))
+            self.wait(1)
+            if viewid is not None:
+                self.touch_by_id(viewid)
+                print ("ssid of taxi.de was selected")
             if self.find_by_text(u'Entfernen'):
-                self.go_back(4)
-                self.isnotallreadyloggedin = True
-                return True
-            self.type_by_text(Device.wifipw, u'Passwort eingeben')
-            self.touch_by_text(u'Verbinden')
-            if self.find_by_text(u'Entfernen'):
-                self.go_back(4)
-            else:
-                self.go_back(3)
-            self.isnotallreadyloggedin = True
+                result = True
+            self.type_by_text(Device.wifipw, u'Passwort eingeben', True)
+            self.device.press('KEYCODE_ENTER')
+            self.wait(1)
             result = True
         except:
             print sys.exc_info()
             print str(self.currentdevice)
             return False
 
+        self.destroy_current_running_app()
         return result
 
     # TODO
     def create_google_account(self):
+        self.wait(1)
         result = False
-        self.start_creating_google_acc()
+        print "CREATE"
+        self.wait(1)
+        if self.start_creating_google_acc():
+            self.wait(1)
+            self.touch_by_text(u'''Konto erstellen''', True)
+            self.touch_by_text(u'''Für mich selbst''', True)
+            self.type_by_id(self.googlefname+str(self.currentdevice), "firstName") #+str(000)+str(self.currentdevice)
+            self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+            self.type_by_id(self.googlelname+str(self.currentdevice), "lastName")
+            self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+            if self.find_by_text(u'Bestätigen Sie, dass Sie kein Roboter sind'):
+                # error handling
+                # if something like: Bist du ein Roboter
+                if Device.phonenumbersgiven:
+                    print ("enter own phone number and verify code from sms")
+                else:
+                    print ("will ask user for pin, cause given phone number is from setter")
+                debug_print("Device: "+str(self.currentdevice) + " Serialno: "+self.serialno+ " -> need PIN to create Google Account; press Enter to generate PIN and send to given phonenumber to generate Google Account:")
+                raw_input()
+                self.type_by_id(self.telephonenumber, "phoneNumberId")
+                #self.touch_by_text("next", True)
+                #self.touch_by_text(u'Weiter', True)
+                self.device.press('KEYCODE_ENTER')
+                debug_print("Device: "+str(self.currentdevice) + " Serialno: "+self.serialno+ " -> need PIN to create Google Account; enter PIN Code:")
+                pin = int(raw_input())
+                self.wait(1)
+                self.type_by_id(pin, "code")
+                #self.touch_by_text("next", True)
+                #self.touch_by_text(u'Weiter', True)
+                self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+            # day
+            self.device.touchDip(80.0, 280.57, 0)
+            self.wait(1)
+            self.enter_text_adb(self.googlebirthday)
+            self.wait(1)
+            # month
+            self.device.touchDip(201.71, 272.0, 0)
+            self.wait(1)
+            # januar
+            self.device.touchDip(83.43, 124.0, 0)
+            self.wait(1)
+            # year
+            self.device.touchDip(314.86, 275.43, 0)
+            self.wait(1)
+            self.enter_text_adb(self.googlebirthyear)
+            # gender
+            self.device.touchDip(125.14, 351.43, 0)
+            self.wait(1)
+            # self.vc.findViewWithTextOrRaise("u'Tag'").type(self.googlebirthday)
+            self.touch_by_text(u'Ich möchte dies nicht beantworten', True)
+            # weiter button
+            self.device.touchDip(314.86, 780, 0)
 
-        self.vc.dump(window=-1)
+            #select email
+            self.wait(1)
+            viewid = self._get_correct_viewid(self.vc.views, 'Gmail-Adresse erstellen')
+            print "View id of: Gmail-Adresse erstellen: " + str(viewid)
+            self.touch_by_id(viewid)
+            print("should be selected")
+            self.email = str(self.googlefname) + str(self.googlelname) + "000" + str(self.currentdevice)
+            if self.email.endswith('.'):
+                self.email.replace('.', '')
+            self.enter_text_adb(self.email)
+            self.wait(1)
+            self.device.press('KEYCODE_ENTER')
+
+            #press password
+            self.password = self.pw_generator()
+            print "Generated Password: " + self.password
+            self.enter_text_adb(self.password)
+            self.wait(1)
+            self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+            self.enter_text_adb(self.password)
+            self.wait(1)
+            self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+
+            self.swipe_up()
+            self.wait(1)
+            # überspringen button
+            self.device.touchDip(72.0, 773.71, 0)
+            self.wait(1)
+            # weiter button
+            self.device.touchDip(314.86, 780, 0)
+
+            # accept agb
+            self.swipe_up()
+            self.wait(1)
+            self.swipe_up()
+            self.wait(1)
+            self.device.touchDip(33.14, 604.71, 0)
+            self.wait(1)
+            self.device.touchDip(33.14, 653.71, 0)
+            self.wait(1)
+            # weiter button
+            self.device.touchDip(314.86, 780, 0)
+            self.wait(3)
+            if self.find_by_text(u'Einen Moment noch…'):
+                self.touch_by_text(u'Bestätigen', True)
+            self.wait(1)
+            result = True
+            self.destroy_current_running_app()
+        else:
+            print ""
         return result
 
+    def pw_generator(self, sizeofchars=8, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(sizeofchars))
+
     def enter_text_adb(self, text):
-        self.device.shell('input text ' + text)
+        self.device.shell('input text ' + str(text))
 
     # works on samsung a10
     def swipe_up(self):
@@ -314,6 +459,7 @@ class Device(threading.Thread):
         h = disp_inf["height"]
         self.device.drag((0.5*w, 0.9*h),(0.5*w, 0.4*h), 300)
 
+    # works on samsung a10
     def swipe_down(self):
         disp_inf = self.device.getDisplayInfo()
         w = disp_inf["width"]
@@ -384,7 +530,7 @@ class Device(threading.Thread):
     # so at the moment don't use this function
     def take_screenshot(self):
         #self.device.shell('exec-out screencap -p > screen.png')
-        image1 = self.device.takeSnapshot().save(os.getcwd()+'/ImagesFromDevice/test.png', 'PNG')
+        image1 = self.device.takeSnapshot(reconnect=True).save(os.getcwd()+'/ImagesFromDevice/test.png', 'PNG')
         try:
             self.vc.dump(window=-1, sleep=3)
         except:
@@ -506,7 +652,7 @@ class Device(threading.Thread):
             self.wait(10)
 
         isinstalled = self._check_if_app_is_installed(appname)
-        if isinstalled is not None:
+        if isinstalled:
             result = True
         self.go_to_home_screen()
         self.wait(1)
@@ -539,9 +685,6 @@ class Device(threading.Thread):
 class DeviceManager(object):
 
     def __init__(self, model):
-        self.device = None
-        self.serialno = None
-        self.vc = None
         self.initialized = False
         self.alldevicesinitiliazed = False
         self.alldevicesdone = False
@@ -567,9 +710,7 @@ class DeviceManager(object):
         if self.check_phones_connected():
             for i in range(int(self.model.countercars)):
 
-                phonenumber = None
-                if self.model.phonenumbersgiven:
-                    phonenumber = self.model.phonenumbers[i]
+                phonenumber = int(str(self.model.phonenumbers).split(',')[i])
                 thread = Device(i, self.alldevs[i], phonenumber)
                 self.devices.update({i: thread})
                 thread.start()
@@ -604,11 +745,12 @@ class DeviceManager(object):
         debug_print("DeviceManager : ✅ All devices are initialized")
 
         # enable wifi if flag is set
-        # if self.model.loginwifi:
-        #    debug_print("DeviceManager : Enable WiFi")
-        #    # save result for measures
-        #    self.resultswifi.update(self.enable_wifi_mode())
-        #    time.sleep(5)
+        if bool(self.model.loginwifi):
+            debug_print("DeviceManager : Enable WiFi")
+            # save result for measures/log
+            #self.resultswifi.update()
+            self.enable_wifi_mode()
+            time.sleep(5)
 
         if len(self.model.installappsps) > 0:
             debug_print("DeviceManager : Install apps from Play Store")
@@ -620,7 +762,8 @@ class DeviceManager(object):
         if self.model.creategoogleaccount:
             debug_print("DeviceManager : Creating Google Accounts")
             # save result data
-            self.resultsgoogleacc.update()
+            #self.resultsgoogleacc.update()
+            self.enable_google_account()
             time.sleep(5)
 
         # wait till all devices are done with their work
@@ -719,9 +862,16 @@ class DeviceManager(object):
     # creates google accounts on all devices
     def enable_google_account(self):
         Device.lock.acquire()
-        Device.installappsappstore = str(self.model.creategoogleaccount)
-        time.sleep(3)
+        Device.creategoogleaccount = bool(self.model.creategoogleaccount)
+        Device.phonenumbersgiven = bool(self.model.phonenumbersgiven)
+        for i in range(int(self.model.countercars)):
+            self.devices.get(i).googlefname = str(self.model.customerfirstname)
+            self.devices.get(i).googlelname = str(self.model.customerlastname)
+            self.devices.get(i).googlebirthday = int(self.model.birthday)
+            self.devices.get(i).googlebirthmonth = int(self.model.birthmonth)
+            self.devices.get(i).googlebirthyear = int(self.model.birthyear)
         Device.lock.release()
+        time.sleep(3)
 
 
 # Dummy - Main - Part
