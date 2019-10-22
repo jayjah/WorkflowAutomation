@@ -2,12 +2,14 @@
 # Created by https://www.gitignore.io/api/macos,pycharm
 # Edit at https://www.gitignore.io/?templates=macos,pycharm
 
-venv/*
+venv
+venv_cfg
 .idea/misc.xml
 .idea/WorkflowAutomation.iml
-src/ImagesFromDevice
+.idea/.gitignore
 res/log.txt
-venv_cfg
+*.pyc
+*__*__.py
 
 ### macOS ###
 # General

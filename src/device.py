@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 import sys
 
+from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
+
+from src.helper import Waiter, debug_print, debug_error_print, keyboard_enter
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 import re
@@ -10,11 +14,6 @@ import threading
 import os
 import time
 import random
-from subprocess import check_output, call
-from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
-from helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script, \
-    AccountSettings, log_file
-
 
 # Handles all orders from device manager
 #   A device object controls a physical device
@@ -54,7 +53,7 @@ class Device(threading.Thread):
         self.device.dragDip((96.0, 477.71), (203.43, 477.71), 500, 200, 0)
         self.device.dragDip((203.43, 477.71), (306.29, 584.0), 500, 200, 0)
         self.device.dragDip((306.29, 584.0), (204.57, 683.43), 500, 200, 0)
-        
+
         the direct opposite of the above snippet should be the following, which is the direct call to keyevent via adb shell keyevent
         !at the moment not working!
         swipegesture = "adb shell sendevent /dev/input/event10 0003 0039 000000d3 && adb shell sendevent /dev/input/event10 0001 014a 00000001 && adb shell sendevent /dev/input/event10 0001 0145 00000001 && adb shell sendevent /dev/input/event10 0003 0035 000000ae && adb shell sendevent /dev/input/event10 0003 0036 000004dc && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0003 0039 0000021c && adb shell sendevent /dev/input/event10 0001 014a 00000001 && adb shell sendevent /dev/input/event10 0001 0145 00000001 && adb shell sendevent /dev/input/event10 0003 0035 000000a1 && adb shell sendevent /dev/input/event10 0003 0036 000004f4 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a2 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 000004f3 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 000004f2 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a3 && adb shell sendevent /dev/input/event10 0003 0036 000004f1 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 000004f0 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a4 && adb shell sendevent /dev/input/event10 0003 0036 000004ef && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a6 && adb shell sendevent /dev/input/event10 0003 0036 000004eb && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a8 && adb shell sendevent /dev/input/event10 0003 0036 000004e8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a9 && adb shell sendevent /dev/input/event10 0003 0036 000004e6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ab && adb shell sendevent /dev/input/event10 0003 0036 000004e3 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ad && adb shell sendevent /dev/input/event10 0003 0036 000004e1 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000af && adb shell sendevent /dev/input/event10 0003 0036 000004de && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b1 && adb shell sendevent /dev/input/event10 0003 0036 000004db && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b4 && adb shell sendevent /dev/input/event10 0003 0036 000004d8 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b7 && adb shell sendevent /dev/input/event10 0003 0036 000004d4 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ba && adb shell sendevent /dev/input/event10 0003 0036 000004d0 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000bf && adb shell sendevent /dev/input/event10 0003 0036 000004cb && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000c3 && adb shell sendevent /dev/input/event10 0003 0036 000004c6 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000c8 && adb shell sendevent /dev/input/event10 0003 0036 000004c1 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000cc && adb shell sendevent /dev/input/event10 0003 0036 000004bc && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000d1 && adb shell sendevent /dev/input/event10 0003 0036 000004b6 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000d6 && adb shell sendevent /dev/input/event10 0003 0036 000004b0 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000db && adb shell sendevent /dev/input/event10 0003 0036 000004a9 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000e0 && adb shell sendevent /dev/input/event10 0003 0036 000004a3 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000e6 && adb shell sendevent /dev/input/event10 0003 0036 0000049c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000eb && adb shell sendevent /dev/input/event10 0003 0036 00000496 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000f0 && adb shell sendevent /dev/input/event10 0003 0036 0000048f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000f6 && adb shell sendevent /dev/input/event10 0003 0036 00000488 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000fc && adb shell sendevent /dev/input/event10 0003 0036 00000482 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000102 && adb shell sendevent /dev/input/event10 0003 0036 0000047b && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000109 && adb shell sendevent /dev/input/event10 0003 0036 00000475 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000010f && adb shell sendevent /dev/input/event10 0003 0036 0000046e && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000115 && adb shell sendevent /dev/input/event10 0003 0036 00000469 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000011b && adb shell sendevent /dev/input/event10 0003 0036 00000463 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000121 && adb shell sendevent /dev/input/event10 0003 0036 0000045d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000127 && adb shell sendevent /dev/input/event10 0003 0036 00000458 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000012d && adb shell sendevent /dev/input/event10 0003 0036 00000453 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000133 && adb shell sendevent /dev/input/event10 0003 0036 0000044f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000138 && adb shell sendevent /dev/input/event10 0003 0036 0000044a && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000013d && adb shell sendevent /dev/input/event10 0003 0036 00000446 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000142 && adb shell sendevent /dev/input/event10 0003 0036 00000442 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000146 && adb shell sendevent /dev/input/event10 0003 0036 0000043e && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014a && adb shell sendevent /dev/input/event10 0003 0036 00000439 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014c && adb shell sendevent /dev/input/event10 0003 0036 00000434 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014f && adb shell sendevent /dev/input/event10 0003 0036 00000430 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000150 && adb shell sendevent /dev/input/event10 0003 0036 0000042a && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000152 && adb shell sendevent /dev/input/event10 0003 0036 00000425 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000041f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000153 && adb shell sendevent /dev/input/event10 0003 0036 0000041a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000414 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000040e && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000408 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000152 && adb shell sendevent /dev/input/event10 0003 0036 00000403 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000150 && adb shell sendevent /dev/input/event10 0003 0036 000003fd && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014e && adb shell sendevent /dev/input/event10 0003 0036 000003f8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014b && adb shell sendevent /dev/input/event10 0003 0036 000003f2 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000148 && adb shell sendevent /dev/input/event10 0003 0036 000003ed && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000142 && adb shell sendevent /dev/input/event10 0003 0036 000003e7 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000013c && adb shell sendevent /dev/input/event10 0003 0036 000003e1 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000135 && adb shell sendevent /dev/input/event10 0003 0036 000003da && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000012b && adb shell sendevent /dev/input/event10 0003 0036 000003d2 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000120 && adb shell sendevent /dev/input/event10 0003 0036 000003c8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000113 && adb shell sendevent /dev/input/event10 0003 0036 000003be && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000108 && adb shell sendevent /dev/input/event10 0003 0036 000003b3 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000fc && adb shell sendevent /dev/input/event10 0003 0036 000003a8 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000f1 && adb shell sendevent /dev/input/event10 0003 0036 0000039e && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000e7 && adb shell sendevent /dev/input/event10 0003 0036 00000394 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000dd && adb shell sendevent /dev/input/event10 0003 0036 0000038b && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000d4 && adb shell sendevent /dev/input/event10 0003 0036 00000381 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000cc && adb shell sendevent /dev/input/event10 0003 0036 00000379 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000c4 && adb shell sendevent /dev/input/event10 0003 0036 00000371 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000bc && adb shell sendevent /dev/input/event10 0003 0036 0000036a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b6 && adb shell sendevent /dev/input/event10 0003 0036 00000364 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b0 && adb shell sendevent /dev/input/event10 0003 0036 00000360 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ac && adb shell sendevent /dev/input/event10 0003 0036 0000035d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a9 && adb shell sendevent /dev/input/event10 0003 0036 0000035b && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a7 && adb shell sendevent /dev/input/event10 0003 0036 0000035a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a5 && adb shell sendevent /dev/input/event10 0003 0036 00000359 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000358 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a6 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000a9 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ad && adb shell sendevent /dev/input/event10 0003 0036 00000357 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b2 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000b8 && adb shell sendevent /dev/input/event10 0003 0036 00000358 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000bf && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000c7 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000d0 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000d9 && adb shell sendevent /dev/input/event10 0003 0036 00000359 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000e3 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ed && adb shell sendevent /dev/input/event10 0003 0036 0000035a && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000f6 && adb shell sendevent /dev/input/event10 0003 0036 0000035c && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000000ff && adb shell sendevent /dev/input/event10 0003 0036 0000035d && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000108 && adb shell sendevent /dev/input/event10 0003 0036 0000035f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000110 && adb shell sendevent /dev/input/event10 0003 0036 00000362 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000119 && adb shell sendevent /dev/input/event10 0003 0036 00000365 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000121 && adb shell sendevent /dev/input/event10 0003 0036 00000368 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000012a && adb shell sendevent /dev/input/event10 0003 0036 0000036c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000131 && adb shell sendevent /dev/input/event10 0003 0036 0000036f && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000138 && adb shell sendevent /dev/input/event10 0003 0036 00000373 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000013f && adb shell sendevent /dev/input/event10 0003 0036 00000377 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000145 && adb shell sendevent /dev/input/event10 0003 0036 0000037b && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000014b && adb shell sendevent /dev/input/event10 0003 0036 0000037f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000150 && adb shell sendevent /dev/input/event10 0003 0036 00000384 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000154 && adb shell sendevent /dev/input/event10 0003 0036 00000389 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000159 && adb shell sendevent /dev/input/event10 0003 0036 0000038d && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015d && adb shell sendevent /dev/input/event10 0003 0036 00000392 && adb shell sendevent /dev/input/event10 0003 0030 00000002 && adb shell sendevent /dev/input/event10 0003 0031 00000002 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000160 && adb shell sendevent /dev/input/event10 0003 0036 00000397 && adb shell sendevent /dev/input/event10 0003 0030 00000001 && adb shell sendevent /dev/input/event10 0003 0031 00000001 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000164 && adb shell sendevent /dev/input/event10 0003 0036 0000039c && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000168 && adb shell sendevent /dev/input/event10 0003 0036 000003a1 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000016c && adb shell sendevent /dev/input/event10 0003 0036 000003a5 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000170 && adb shell sendevent /dev/input/event10 0003 0036 000003aa && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000174 && adb shell sendevent /dev/input/event10 0003 0036 000003ae && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000179 && adb shell sendevent /dev/input/event10 0003 0036 000003b2 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000017d && adb shell sendevent /dev/input/event10 0003 0036 000003b6 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000182 && adb shell sendevent /dev/input/event10 0003 0036 000003ba && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000188 && adb shell sendevent /dev/input/event10 0003 0036 000003bf && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000018f && adb shell sendevent /dev/input/event10 0003 0036 000003c4 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000195 && adb shell sendevent /dev/input/event10 0003 0036 000003c8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000019c && adb shell sendevent /dev/input/event10 0003 0036 000003cd && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a4 && adb shell sendevent /dev/input/event10 0003 0036 000003d2 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ad && adb shell sendevent /dev/input/event10 0003 0036 000003d7 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b7 && adb shell sendevent /dev/input/event10 0003 0036 000003dc && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c2 && adb shell sendevent /dev/input/event10 0003 0036 000003e1 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001cb && adb shell sendevent /dev/input/event10 0003 0036 000003e6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d2 && adb shell sendevent /dev/input/event10 0003 0036 000003ea && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001da && adb shell sendevent /dev/input/event10 0003 0036 000003ed && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e0 && adb shell sendevent /dev/input/event10 0003 0036 000003ef && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e4 && adb shell sendevent /dev/input/event10 0003 0036 000003f1 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e8 && adb shell sendevent /dev/input/event10 0003 0036 000003f2 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ec && adb shell sendevent /dev/input/event10 0003 0036 000003f4 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ef && adb shell sendevent /dev/input/event10 0003 0036 000003f6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f2 && adb shell sendevent /dev/input/event10 0003 0036 000003f8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f5 && adb shell sendevent /dev/input/event10 0003 0036 000003fa && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f8 && adb shell sendevent /dev/input/event10 0003 0036 000003fc && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fa && adb shell sendevent /dev/input/event10 0003 0036 000003ff && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fc && adb shell sendevent /dev/input/event10 0003 0036 00000401 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fe && adb shell sendevent /dev/input/event10 0003 0036 00000404 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ff && adb shell sendevent /dev/input/event10 0003 0036 00000406 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000200 && adb shell sendevent /dev/input/event10 0003 0036 00000409 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000040a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000040c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ff && adb shell sendevent /dev/input/event10 0003 0036 0000040e && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fe && adb shell sendevent /dev/input/event10 0003 0036 0000040f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fd && adb shell sendevent /dev/input/event10 0003 0036 00000410 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fb && adb shell sendevent /dev/input/event10 0003 0036 00000411 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001fa && adb shell sendevent /dev/input/event10 0003 0036 00000412 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f9 && adb shell sendevent /dev/input/event10 0003 0036 00000413 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000415 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f8 && adb shell sendevent /dev/input/event10 0003 0036 00000416 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000417 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000418 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000041a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000041b && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000041c && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000041d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f7 && adb shell sendevent /dev/input/event10 0003 0036 0000041f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000421 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000422 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f6 && adb shell sendevent /dev/input/event10 0003 0036 00000424 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000426 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f5 && adb shell sendevent /dev/input/event10 0003 0036 00000427 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000429 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f4 && adb shell sendevent /dev/input/event10 0003 0036 0000042a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f3 && adb shell sendevent /dev/input/event10 0003 0036 0000042c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f2 && adb shell sendevent /dev/input/event10 0003 0036 0000042d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f1 && adb shell sendevent /dev/input/event10 0003 0036 0000042f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001f0 && adb shell sendevent /dev/input/event10 0003 0036 00000431 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ee && adb shell sendevent /dev/input/event10 0003 0036 00000433 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ec && adb shell sendevent /dev/input/event10 0003 0036 00000435 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ea && adb shell sendevent /dev/input/event10 0003 0036 00000438 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e9 && adb shell sendevent /dev/input/event10 0003 0036 0000043a && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e7 && adb shell sendevent /dev/input/event10 0003 0036 0000043d && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e5 && adb shell sendevent /dev/input/event10 0003 0036 00000440 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e3 && adb shell sendevent /dev/input/event10 0003 0036 00000443 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e2 && adb shell sendevent /dev/input/event10 0003 0036 00000446 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001e0 && adb shell sendevent /dev/input/event10 0003 0036 00000449 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001df && adb shell sendevent /dev/input/event10 0003 0036 0000044d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001dd && adb shell sendevent /dev/input/event10 0003 0036 00000451 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001dc && adb shell sendevent /dev/input/event10 0003 0036 00000453 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001da && adb shell sendevent /dev/input/event10 0003 0036 00000456 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d8 && adb shell sendevent /dev/input/event10 0003 0036 00000458 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d7 && adb shell sendevent /dev/input/event10 0003 0036 0000045a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d6 && adb shell sendevent /dev/input/event10 0003 0036 0000045c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d5 && adb shell sendevent /dev/input/event10 0003 0036 0000045e && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d3 && adb shell sendevent /dev/input/event10 0003 0036 00000460 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000462 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d2 && adb shell sendevent /dev/input/event10 0003 0036 00000463 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d1 && adb shell sendevent /dev/input/event10 0003 0036 00000464 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001d0 && adb shell sendevent /dev/input/event10 0003 0036 00000465 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001cf && adb shell sendevent /dev/input/event10 0003 0036 00000466 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ce && adb shell sendevent /dev/input/event10 0003 0036 00000467 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001cd && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001cc && adb shell sendevent /dev/input/event10 0003 0036 00000468 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001cb && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ca && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c9 && adb shell sendevent /dev/input/event10 0003 0036 00000469 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c7 && adb shell sendevent /dev/input/event10 0003 0036 0000046a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000046b && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c5 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c4 && adb shell sendevent /dev/input/event10 0003 0036 0000046c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c3 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c2 && adb shell sendevent /dev/input/event10 0003 0036 0000046d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001c0 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001be && adb shell sendevent /dev/input/event10 0003 0036 0000046e && adb shell sendevent /dev/input/event10 0003 0030 00000007 && adb shell sendevent /dev/input/event10 0003 0031 00000007 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001bc && adb shell sendevent /dev/input/event10 0003 0036 0000046f && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001bb && adb shell sendevent /dev/input/event10 0003 0036 00000470 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b9 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b8 && adb shell sendevent /dev/input/event10 0003 0036 00000471 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b7 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b6 && adb shell sendevent /dev/input/event10 0003 0036 00000472 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b5 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b3 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b2 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001b0 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001af && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ae && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ad && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ac && adb shell sendevent /dev/input/event10 0003 0036 00000473 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001ab && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001aa && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a9 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a8 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a7 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a5 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a4 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000474 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a3 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a2 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000475 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a1 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0030 00000008 && adb shell sendevent /dev/input/event10 0003 0031 00000008 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000476 && adb shell sendevent /dev/input/event10 0003 0030 00000009 && adb shell sendevent /dev/input/event10 0003 0031 00000009 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 000001a0 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000477 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000019f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000478 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0030 00000007 && adb shell sendevent /dev/input/event10 0003 0031 00000007 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 00000479 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000019e && adb shell sendevent /dev/input/event10 0003 0036 0000047a && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000047b && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000019d && adb shell sendevent /dev/input/event10 0003 0036 0000047f && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000019b && adb shell sendevent /dev/input/event10 0003 0036 00000487 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000197 && adb shell sendevent /dev/input/event10 0003 0036 00000492 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000193 && adb shell sendevent /dev/input/event10 0003 0036 000004a0 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000018f && adb shell sendevent /dev/input/event10 0003 0036 000004af && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000018a && adb shell sendevent /dev/input/event10 0003 0036 000004c0 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000188 && adb shell sendevent /dev/input/event10 0003 0036 000004cc && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000185 && adb shell sendevent /dev/input/event10 0003 0036 000004d6 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000182 && adb shell sendevent /dev/input/event10 0003 0036 000004e0 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000017f && adb shell sendevent /dev/input/event10 0003 0036 000004ea && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000017a && adb shell sendevent /dev/input/event10 0003 0036 000004f3 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000177 && adb shell sendevent /dev/input/event10 0003 0036 000004f9 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000174 && adb shell sendevent /dev/input/event10 0003 0036 000004fd && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000171 && adb shell sendevent /dev/input/event10 0003 0036 00000500 && adb shell sendevent /dev/input/event10 0003 0030 00000003 && adb shell sendevent /dev/input/event10 0003 0031 00000003 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000016e && adb shell sendevent /dev/input/event10 0003 0036 00000502 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000016b && adb shell sendevent /dev/input/event10 0003 0036 00000504 && adb shell sendevent /dev/input/event10 0003 0030 00000004 && adb shell sendevent /dev/input/event10 0003 0031 00000004 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000168 && adb shell sendevent /dev/input/event10 0003 0036 00000506 && adb shell sendevent /dev/input/event10 0003 0030 00000005 && adb shell sendevent /dev/input/event10 0003 0031 00000005 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000166 && adb shell sendevent /dev/input/event10 0003 0036 00000508 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000163 && adb shell sendevent /dev/input/event10 0003 0036 00000509 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000162 && adb shell sendevent /dev/input/event10 0003 0036 0000050a && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000160 && adb shell sendevent /dev/input/event10 0003 0036 0000050c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015d && adb shell sendevent /dev/input/event10 0003 0036 0000050d && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015c && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015b && adb shell sendevent /dev/input/event10 0003 0036 0000050e && adb shell sendevent /dev/input/event10 0003 0030 00000007 && adb shell sendevent /dev/input/event10 0003 0031 00000007 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 0000015a && adb shell sendevent /dev/input/event10 0003 0036 0000050f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000159 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000158 && adb shell sendevent /dev/input/event10 0003 0036 00000510 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000157 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000156 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000155 && adb shell sendevent /dev/input/event10 0003 0036 0000050f && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0035 00000154 && adb shell sendevent /dev/input/event10 0003 0036 0000050e && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0036 0000050d && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0030 00000006 && adb shell sendevent /dev/input/event10 0003 0031 00000006 && adb shell sendevent /dev/input/event10 0000 0000 00000000 && adb shell sendevent /dev/input/event10 0003 0030 00000005"
@@ -83,6 +82,7 @@ class Device(threading.Thread):
         self.powersavingmodeconfigured = False
         self.PIN = pin
         self.disabledpin = False
+        self.increasedscreenbrightness = False
 
         # device specific settings
         self.currentdevice = number
@@ -123,38 +123,51 @@ class Device(threading.Thread):
         while not self.isdone:
             # disable sim lock
             if self.initialized and Device.disablesimlock and not self.disabledpin:
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Disable Sim Lock")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Disable Sim Lock")
                 self.disabledpin = self.disable_sim_lock()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Disable Sim Lock --- Result: "+str(self.disabledpin))
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Disable Sim Lock --- Result: " + str(self.disabledpin))
 
             # configure sound settings
             if self.initialized and Device.configuresoundsettings and not self.soundconfigconfigured:
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Set Volume To Maximum")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Set Volume To Maximum")
                 self.soundconfigconfigured = self.configure_all_sound_settings()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Set Volume To Maximum --- Result: "+str(self.soundconfigconfigured))
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Set Volume To Maximum --- Result: " + str(self.soundconfigconfigured))
 
             # configure location settings
             if self.initialized and Device.configurelocationsettings and not self.locationconfigured:
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Configure Location Settings")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Configure Location Settings")
                 self.locationconfigured = self.start_location_settings()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Configure Location Settings --- Result: "+str(self.locationconfigured))
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Configure Location Settings --- Result: " + str(
+                    self.locationconfigured))
 
             # wifi
             if self.initialized and not self.wifienabled and Device.wifissid is not None and Device.wifipw is not None:
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Enable Wifi Settings")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Enable Wifi Settings")
                 self.wifienabled = self.wifi_login()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Enable Wifi Settings --- Result: "+str(self.wifienabled))
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Enable Wifi Settings --- Result: " + str(self.wifienabled))
 
             # create google account
             if self.initialized and Device.creategoogleaccount and self.googlefname != '' and self.googlelname != '' and self.googlebirthday != 0 and self.googlebirthmonth != 0 and self.googlebirthmonth != 0 and self.email == '' and self.password == '':
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Creating Google Account")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Creating Google Account")
                 self.createdgoogleaccount = self.create_google_account()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Creating Google Account --- Result: "+str(self.createdgoogleaccount) +" Email: "+self.email+" Password: "+self.password)
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Creating Google Account --- Result: " + str(
+                    self.createdgoogleaccount) + " Email: " + self.email + " Password: " + self.password)
 
             # install apps from play store
             if self.initialized and len(Device.installappsappstore) != 0 and len(
                     Device.installappsappstore) != self.installedappsappstore:
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Installing Apps From Play Store")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Installing Apps From Play Store")
                 while self.installedappsappstore != len(Device.installappsappstore):
                     result = self.download_app(Device.installappsappstore[self.installedappsappstore])
                     self.installedapps[str(Device.installappsappstore[self.installedappsappstore])] = result
@@ -163,21 +176,25 @@ class Device(threading.Thread):
                     else:
                         print "Could not install app"
                     self.installedappsappstore += 1
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Installing Apps From Play Store")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Installing Apps From Play Store")
 
             # pair driver app
             if self.initialized and Device.pairdriverapp and not self.ispaired and Device.pairdriverappname != '' and Device.pairdriverapppw != '':
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" Starting Task: Pair Driver App")
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Pair Driver App")
                 self.ispaired = self.pair_driverapp()
-                debug_print(" Device Nummer: "+str(self.currentdevice)+" || Serialno: "+str(self.serialno)+" End Task: Pair Driver App")
-
-            # increase screen brightness to maximum
-            if self.initialized and Device.BRIGHTNESS_HIGH:
-                self.increase_screen_brigthness(times=16)
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Pair Driver App")
 
             # configre power saving mode for driver app
-            # if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
-            # self.powersavingmodeconfigured = self.
+            if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
+                self.powersavingmodeconfigured = self.start_battery_optimization_settings()
+
+            # increase screen brightness to maximum
+            if self.initialized and Device.BRIGHTNESS_HIGH and not self.increasedscreenbrightness:
+                self.increase_screen_brigthness(times=5)
+                self.increasedscreenbrightness = True
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
@@ -597,7 +614,23 @@ class Device(threading.Thread):
         return False
 
     def start_battery_optimization_settings(self):
-        return self._start_intent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS')
+        result = self._start_intent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS')
+        self.wait(1)
+        if result:
+            self.vc.findViewWithTextOrRaise(u'Apps nicht optimiert', root=self.vc.findViewByIdOrRaise('id/no_id/5')).touch()
+            self.wait()
+            self.vc.findViewWithTextOrRaise(u'Alle').touch()
+            self.wait()
+            self.swipe_up()
+            self.swipe_up()
+            self.wait()
+            self.swipe_up()
+            self.swipe_up()
+            self.wait()
+            self.swipe_up()
+
+            result = True
+        return result
 
     # TODO click on "Zulassen" to fulfill this function
     def disable_battery_optimization_driverapp(self):
@@ -608,12 +641,16 @@ class Device(threading.Thread):
         result = self._start_intent('android.intent.action.VIEW -d market://details?id=' + appname)
         self.wait(3)
         if result:
-            if self.find_by_text(u'Öffnen mit'):
-                self.touch_by_text(u'Google Play Store', True)
-                self.touch_by_text(u'Immer', True)
-            return True
+            try:
+                if self.find_by_text(u'Öffnen mit'):
+                    self.touch_by_text(u'Google Play Store', True)
+                    self.touch_by_text(u'Immer', True)
+                result = True
+            except:
+                result = False
         else:
-            return False
+            result = False
+        return result
 
     def start_creating_google_acc(self):
         result = self._start_intent('android.settings.ADD_ACCOUNT_SETTINGS --es "account_types" "google.com"')
@@ -820,262 +857,3 @@ class Device(threading.Thread):
         # self.vc.findViewWithText(appname)
         result = True
         return result
-
-
-# Handles all devices, give orders to devices for given config
-# Master Class
-class DeviceManager(object):
-
-    def __init__(self, model):
-        self.initialized = False
-        self.alldevicesinitiliazed = False
-        self.alldevicesdone = False
-        self.connecteddevices = []
-        self.model = model
-
-        # results from devices to metrics the result
-        self.resultswifi = dict()
-        self.resultsgoogleacc = dict()
-        self.resultsinstallappsps = dict()
-        self.resultspaireddriverapp = dict()
-        self.resultssettings = dict()
-
-        # all device serial numbers
-        # index 0 in alldevs is device 0
-        self.alldevs = []
-        self.alldevscounter = 0
-        for device in self.adb_devices():
-            if "devices" not in device and "device" not in device:
-                self.alldevs.append(device)
-                self.alldevscounter += 1
-
-        # start threads&& adb shell sendevent /devices if enough connected phones exist
-        self.devices = {}
-        if self.check_phones_connected():
-            for i in range(int(self.model.countercars)):
-
-                phonenumber = None
-                if str(self.model.phonenumbersgiven) == str(True):
-                    phonenumber = int(str(self.model.phonenumbers).split(',')[i])
-                else:
-                    phonenumber = int(str(self.model.phonenumbers).split(',')[0])
-
-                pin = None
-                if str(self.model.disablesimlock) == str(True):
-                    pin = int(str(self.model.simpins).split(',')[i])
-
-                thread = Device(i, self.alldevs[i], phonenumber, pin)
-                self.devices.update({i: thread})
-                thread.start()
-
-                # after last device was started, go in watch mode
-                if str(i + 1) == str(self.model.countercars):
-                    time.sleep(1)
-                    debug_print(
-                        "DeviceManager : Last device started, DeviceManager goes in watch mode and gives orders")
-                    self.run()
-        else:
-            debug_print("should init phones: " + str(self.model.countercars))
-            debug_print("connected phones: " + str(self.alldevscounter))
-            debug_error_print("Something wrong here!", "Connect more phones or maybe put another value in "
-                                                       "config settings")
-            print_and_exit_script()
-
-    # Runner Method from master
-    # Sets Class Flags in Device class to let the device threads do their job
-    # Script - Flow
-    def run(self):
-
-        # waits till all devices are initialized
-        while not self.alldevicesinitiliazed:
-            # wait 5 sec
-            # TODO check error state of all threads&& adb shell sendevent /devices and make error handling
-            self.check_if_all_devices_are_initialized()
-            debug_print("DeviceManager : ⌛ Not all devices are initialized")
-            time.sleep(5)
-
-        debug_print("DeviceManager : ✅ All devices are initialized")
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.configuresoundsettings) == str(True):
-            # debug_print("DeviceManager : Configure Sound Settings")
-            Device.lock.acquire()
-            # Device.configuresoundsettings = True
-            Device.lock.release()
-            time.sleep(5)
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.configurelocationsettings) == str(True):
-            # debug_print("DeviceManager : Configure Location Settings")
-            Device.lock.acquire()
-            # Device.configurelocationsettings = True
-            Device.lock.release()
-            time.sleep(5)
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.disablesimlock) == str(True):
-            # debug_print("DeviceManager : Disable Sim Lock")
-            Device.lock.acquire()
-            # Device.disablesimlock = True
-            Device.lock.release()
-            time.sleep(5)
-
-        if str(self.model.loginwifi) == str(True):
-            # debug_print("DeviceManager : Enable WiFi")
-            # self.enable_wifi_mode()
-            time.sleep(5)
-
-        if str(self.model.creategoogleaccount) == str(True):
-            # debug_print("DeviceManager : Creating Google Account")
-            # self.enable_google_account()
-            time.sleep(5)
-
-        if len(self.model.installappsps) > 0:
-            # debug_print("DeviceManager : Install apps from Play Store")
-            # self.install_apps_from_playstore()
-            time.sleep(5)
-
-        if str(self.model.pairdriverapp) == str(True):
-            # debug_print("DeviceManager : Pair Driver App")
-            Device.lock.acquire()
-            # Device.pairdriverapp = True
-            Device.pairdriverappname = self.model.drivername
-            Device.pairdriverapppw = self.model.driverpw
-            Device.lock.release()
-            time.sleep(5)
-
-        # wait till all devices are done with their work
-        while not self.alldevicesdone:
-            if self.check_if_all_devices_are_initialized():
-                self.check_if_all_devices_are_done()
-                debug_print("DeviceManager : ⌛️ All devices are initialized. But Not all all of them are done")
-
-                # store all results
-                for i in range(int(self.model.countercars)):
-                    self.resultswifi[self.devices.get(i).currentdevice] = self.devices.get(i).wifienabled
-
-                    googleaccsettings = AccountSettings(self.devices.get(i).createdgoogleaccount,
-                                                        self.devices.get(i).email, self.devices.get(i).password)
-                    self.resultsgoogleacc[str(self.devices.get(i).currentdevice) + "||" + str(
-                        self.devices.get(i).serialno)] = "Success: " + str(
-                        googleaccsettings.success) + " Email: " + str(googleaccsettings.email) + " Password: " + str(
-                        googleaccsettings.emailpassword)
-
-                    self.resultsinstallappsps[self.devices.get(i).currentdevice] = self.devices.get(i).installedapps
-
-                    self.resultspaireddriverapp[self.devices.get(i).currentdevice] = self.devices.get(i).ispaired
-
-                    self.resultssettings[self.devices.get(i).currentdevice] = "Sound: " + str(
-                        self.devices.get(i).soundconfigconfigured) + " SimLock: " + str(
-                        self.devices.get(i).disabledpin) + " Location: " + str(self.devices.get(i).locationconfigured)
-
-                # prints results
-                print "RESUUULT SETTINGS:"
-                print self.resultssettings
-                print "RESUUULT WIFI:"
-                print self.resultswifi
-                print "RESUUULT GOOGLEACCS:"
-                print self.resultsgoogleacc
-                print "RESUUULT INSTALLEDAPPS:"
-                print self.resultsinstallappsps
-                print "RESUUULT PAIRED DRIVER APP"
-                print self.resultspaireddriverapp
-
-                # wait 10 sec
-                time.sleep(10)
-
-        # all devices are done
-        debug_print("DeviceManager : ✅ All devices are done")
-
-        # stop threads if their state is not finalized
-        for thread in self.devices.values():
-            if not bool(thread.isdone):
-                thread.join()
-
-        # Close automator
-        debug_print("DeviceManager : Close Session")
-        print_and_exit_script()
-
-    # Checks for connected devices with adb and reformat that output
-    def adb_devices(self):
-        return set([device.split('\t')[0] for device in check_output(['adb', 'devices']).splitlines() if
-                    device.endswith('\tdevice')])
-
-    # Checks for connected devices with adb and reformat that output [old]
-    def _adb_devices_second(self):
-        adb_ouput = str(check_output(["adb", "devices"]))
-        print adb_ouput
-        list = adb_ouput.split('\n')
-        return list
-
-    # Checks if all connected devices are initialized in their state
-    def check_if_all_devices_are_initialized(self):
-        if len(self.model.countercars) == 0 or self.alldevicesinitiliazed:
-            return True
-        counter = 0
-        for i in range(int(self.model.countercars)):
-            if self.devices.get(i).initialized:
-                counter += 1
-        if int(self.model.countercars) == counter:
-            self.alldevicesinitiliazed = True
-            return True
-        else:
-            return False
-
-    # Checks if all connected devices are done in their state
-    def check_if_all_devices_are_done(self):
-        if len(self.model.countercars) == 0 or self.alldevicesdone:
-            return True
-        counter = 0
-        for i in range(int(self.model.countercars)):
-            if self.devices.get(i).isdone:
-                counter += 1
-        if self.model.countercars == counter:
-            self.alldevicesdone = True
-            return True
-        else:
-            return False
-
-    # check if adb_devices or adb_devices_second should be the correct method to take
-    # probably it's the first one
-    def check_phones_connected(self):
-        list = self.adb_devices()
-        if int(len(list)) == int(self.model.countercars):
-            return True
-        else:
-            return False
-
-    # enables wifi on all devices with given credentiels from models
-    def enable_wifi_mode(self):
-        Device.lock.acquire()
-        Device.wifissid = self.model.wifissid
-        Device.wifipw = self.model.wifipw
-        Device.lock.release()
-
-    def install_apps_from_playstore(self):
-        Device.lock.acquire()
-        Device.installappsappstore = str(self.model.installappsps).split(',')
-        Device.lock.release()
-
-    # creates google accounts on all devices
-    def enable_google_account(self):
-        Device.lock.acquire()
-        Device.creategoogleaccount = bool(self.model.creategoogleaccount)
-        Device.phonenumbersgiven = bool(self.model.phonenumbersgiven)
-        for i in range(int(self.model.countercars)):
-            self.devices.get(i).googlefname = str(self.model.customerfirstname)
-            self.devices.get(i).googlelname = str(self.model.customerlastname)
-            self.devices.get(i).googlebirthday = int(self.model.birthday)
-            self.devices.get(i).googlebirthmonth = int(self.model.birthmonth)
-            self.devices.get(i).googlebirthyear = int(self.model.birthyear)
-        Device.lock.release()
-
-
-# Dummy - Main - Part
-class Controller(object):
-
-    def __init__(self):
-        debug_print("init Controller")
-        self.model = Model()
-        print self.model.__str__()
-        self.devicemanager = DeviceManager(self.model)
-        debug_print("init Controller succesfully")
-
-controller = Controller()
