@@ -9,6 +9,8 @@ from enum import Enum
 settings_menu = u'''Einstellungen'''
 keyboard_enter = 'KEYCODE_ENTER'
 keyboard_delete = 'KEYCODE_DEL'
+log_file = None
+FILELOG = True
 
 
 # Global write functions to display something on terminal
@@ -17,13 +19,24 @@ def print_and_exit_script(success=False):
     print ("---- End Scipt ----")
     print ("---------------------")
     print ("---------------------")
+    log_file.close()
     if success:
         exit(0)
     exit(1)
 
+
 def debug_print(value):
-    print "--- ", value, " ----"
-    print ("---------------------")
+    log_file = open('./../res/log.txt', 'a+')
+    value = "---- "+str(value)+ " ----\n"
+    paragraph = "---------------------\n"
+    if FILELOG:
+        log_file.flush()
+        log_file.writelines(value)
+        log_file.writelines(paragraph)
+    print value
+    print paragraph
+    log_file.close()
+
 
 def debug_error_print(mssage, error):
     print "--- ", mssage, " ----"
@@ -31,12 +44,14 @@ def debug_error_print(mssage, error):
     print "--- ", error, " ----"
     print ("---------------------")
 
+
 # Class to hold gmail account settings in measures/log
 class AccountSettings(object):
     def __init__(self, success, email, pw):
         self.success = success
         self.email = email
         self.emailpassword = pw
+
 
 # Interactive class for getting config from user
 #   reads all values from terminal through an interactive session with an user

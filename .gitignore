@@ -3,8 +3,11 @@
 # Edit at https://www.gitignore.io/?templates=macos,pycharm
 
 venv/*
-.idea/*
+.idea/misc.xml
+.idea/WorkflowAutomation.iml
 src/ImagesFromDevice
+res/log.txt
+venv_cfg
 
 ### macOS ###
 # General
@@ -127,3 +130,4 @@ fabric.properties
 
 # End of https://www.gitignore.io/api/macos,pycharm
 /venv/
+/venv_cfg/
