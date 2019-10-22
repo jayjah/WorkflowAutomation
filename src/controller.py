@@ -9,10 +9,9 @@ import threading
 import os
 import time
 import random
+
 from subprocess import check_output
-
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
-
 from src.helper import Waiter, debug_print, Model, debug_error_print, keyboard_enter, print_and_exit_script, AccountSettings
 
 # Handles all orders from device manager
@@ -35,8 +34,9 @@ class Device(threading.Thread):
     configuresoundsettings = False
     configurelocationsettings = False
     configurepowersavingmode = False
+    disablesimlock = False
 
-    def __init__(self, number, serialno, telephonenummber=None):
+    def __init__(self, number, serialno, telephonenummber=None, pin=None):
         threading.Thread.__init__(self)
 
         # flags
@@ -58,6 +58,8 @@ class Device(threading.Thread):
         self.soundconfigconfigured = False
         self.locationconfigured = False
         self.powersavingmodeconfigured = False
+        self.PIN = pin
+        self.disabledpin = False
 
         # device specific settings
         self.currentdevice = number
@@ -94,6 +96,20 @@ class Device(threading.Thread):
     # Runner Method from slave
     def run(self):
         while not self.isdone:
+            # disable sim lock
+            if self.initialized and Device.disablesimlock and not self.disabledpin:
+                self.disabledpin = self.disable_sim_lock()
+                self.wait(1)
+
+            # configure sound settings
+            if self.initialized and Device.configuresoundsettings and not self.soundconfigconfigured:
+                self.soundconfigconfigured = self.configure_all_sound_settings()
+                self.wait(1)
+
+            # configure location settings
+            if self.initialized and Device.configurelocationsettings and not self.locationconfigured:
+                self.locationconfigured = self.start_location_settings()
+                self.wait(1)
 
             # wifi
             if self.initialized and not self.wifienabled and Device.wifissid is not None and Device.wifipw is not None:
@@ -120,12 +136,11 @@ class Device(threading.Thread):
             # pair driver app
             if self.initialized and Device.pairdriverapp and not self.ispaired and Device.pairdriverappname != '' and Device.pairdriverapppw != '':
                 self.ispaired = self.pair_driverapp()
+                self.wait(1)
 
-            # configure sound settings
-            if self.initialized and Device.configuresoundsettings and not self.soundconfigconfigured:
-                self.soundconfigconfigured = self.configure_all_sound_settings()
-
-            # TODO location settings and disable power saving mode for driverapp
+            # configre power saving mode for driver app
+            #if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
+               # self.powersavingmodeconfigured = self.
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
@@ -287,6 +302,31 @@ class Device(threading.Thread):
             result = True
         return result
 
+    def disable_sim_lock(self):
+        result = False
+        self.wait()
+        self.start_settings()
+        self.wait(1)
+        try:
+            self.swipe_up()
+            self.wait()
+            self.touch_by_text("Biometrische Daten und Sicherheit", True)
+            self.touch_by_text("Andere Sicherheitseinstellungen", True)
+            self.touch_by_text("SIM-Sperre einrichten", True)
+            self.touch_by_text("Sperren der SIM-Karte", True)
+            self.enter_text_adb(self.PIN)
+            #self.wait(1)
+            #self.device.press('KEYCODE_ENTER')
+            self.wait(1)
+            self.touch_by_text("OK", True)
+
+            result = True
+        except:
+            result = False
+        self.destroy_current_running_app()
+        self.wait(1)
+        return result
+
     def _get_correct_viewid(self, views, search):
         result = None
         if views is not None and search is not None:
@@ -331,11 +371,9 @@ class Device(threading.Thread):
                 except:
                     print ("error in view")
 
-            print("View with ssid of taxi.de: "+str(viewid))
             self.wait(1)
             if viewid is not None:
                 self.touch_by_id(viewid)
-                print ("ssid of taxi.de was selected")
             if self.find_by_text(u'Entfernen'):
                 result = True
             self.type_by_text(Device.wifipw, u'Passwort eingeben', True)
@@ -345,7 +383,7 @@ class Device(threading.Thread):
         except:
             print sys.exc_info()
             print str(self.currentdevice)
-            return False
+            result = False
 
         self.destroy_current_running_app()
         return result
@@ -458,9 +496,9 @@ class Device(threading.Thread):
                 self.touch_by_text(u'Bestätigen', True)
             self.wait(1)
             result = True
-            self.destroy_current_running_app()
         else:
             print ""
+        self.destroy_current_running_app()
         return result
 
     def pw_generator(self, sizeofchars=8, chars=string.ascii_uppercase + string.digits):
@@ -496,8 +534,24 @@ class Device(threading.Thread):
     def start_sound_settings(self):
         return self._start_intent('android.settings.SOUND_SETTINGS')
 
+    def start_settings(self):
+        return self._start_intent('android.settings.SETTINGS')
+
     def start_location_settings(self):
-        return self._start_intent('android.settings.LOCATION_SOURCE_SETTINGS')
+        self.wait()
+        if self._start_intent('android.settings.LOCATION_SOURCE_SETTINGS'):
+            self.wait(1)
+            if self.find_by_text('Standort, Aus'):
+                self.touch_by_text('Standort, Aus', True)
+            self.touch_by_text("Genauigkeit verbessern", True)
+            self.touch_by_text("WLAN-Scan", True)
+            self.touch_by_text("Bluetooth-Scanning", True)
+            self.destroy_current_running_app()
+            self.wait(1)
+            return True
+        self.destroy_current_running_app()
+        self.wait(1)
+        return False
 
     def start_battery_optimization_settings(self):
         return self._start_intent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS')
@@ -595,32 +649,49 @@ class Device(threading.Thread):
             self.wait(2)
             self.touch_by_text(u'Lautstärke', True)
             self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait(1)
+            self.wait()
             self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait(1)
+            self.wait()
+            self.go_back(1)
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
+            self.increase_standard_volume()
+            self.wait()
             self.destroy_current_running_app()
+            self.wait()
             return True
         except:
+            self.destroy_current_running_app()
+            self.wait()
             return False
 
     def _check_permission_app(self):
@@ -629,9 +700,11 @@ class Device(threading.Thread):
             self._check_permission_app()
 
     def pair_driverapp(self):
+        self.wait(1)
         self.device.shell('am start -n com.talex.mytaxidriver/.activities.main.MainActivity')
-        self.wait()
+        self.wait(3)
         self._check_permission_app()
+        self.wait(3)
         self.type_by_id(Device.pairdriverappname, "com.talex.mytaxidriver:id/nickET")
         self.type_by_id(Device.pairdriverapppw, "com.talex.mytaxidriver:id/passET")
         self.touch_by_id("com.talex.mytaxidriver:id/BtnLogin")
@@ -661,6 +734,12 @@ class Device(threading.Thread):
         install = self.find_by_text("Installieren")
         if install:
             self.touch_by_text("Installieren", True)
+            if self.find_by_text(u'Kontoeinrichtung abschließen') is not False:
+                try:
+                    self.touch_by_text(u'WEITER')
+                    self.touch_by_text(u'ÜBERSPRINGEN', True)
+                except:
+                    print ("Error")
             if self.find_by_text(u'Weiter') is not False:
                 try:
                     self.touch_by_text(u'WEITER')
@@ -673,7 +752,7 @@ class Device(threading.Thread):
         isinstalled = self._check_if_app_is_installed(appname)
         if isinstalled:
             result = True
-        self.go_to_home_screen()
+        self.destroy_current_running_app()
         self.wait(1)
         return result
 
@@ -715,6 +794,7 @@ class DeviceManager(object):
         self.resultsgoogleacc = dict()
         self.resultsinstallappsps = dict()
         self.resultspaireddriverapp = dict()
+        self.resultssettings = dict()
 
         # all device serial numbers
         # index 0 in alldevs is device 0
@@ -729,12 +809,18 @@ class DeviceManager(object):
         self.devices = {}
         if self.check_phones_connected():
             for i in range(int(self.model.countercars)):
+
                 phonenumber = None
-                if self.model.phonenumbersgiven:
+                if str(self.model.phonenumbersgiven) == str(True):
                     phonenumber = int(str(self.model.phonenumbers).split(',')[i])
                 else:
                     phonenumber = int(str(self.model.phonenumbers).split(',')[0])
-                thread = Device(i, self.alldevs[i], phonenumber)
+
+                pin = None
+                if str(self.model.disablesimlock) == str(True):
+                    pin = int(str(self.model.simpins).split(',')[i])
+
+                thread = Device(i, self.alldevs[i], phonenumber, pin)
                 self.devices.update({i: thread})
                 thread.start()
 
@@ -764,25 +850,37 @@ class DeviceManager(object):
             debug_print("DeviceManager : ⌛ Not all devices are initialized")
             time.sleep(5)
 
-
         debug_print("DeviceManager : ✅ All devices are initialized")
 
-        if self.model.configuresettings and self.model.configuresoundsettings:
-            debug_print("DeviceManager : Configure Sound Settings")
+        if str(self.model.configuresettings) == str(True) and str(self.model.configuresoundsettings) == str(True):
+            #debug_print("DeviceManager : Configure Sound Settings")
             Device.lock.acquire()
-            Device.configuresoundsettings = True
+            #Device.configuresoundsettings = True
             Device.lock.release()
-
-        # enable wifi if flag is set
-        if bool(self.model.loginwifi):
-            debug_print("DeviceManager : Enable WiFi")
-            self.enable_wifi_mode()
             time.sleep(5)
 
-        # create google acc if flag is set
-        if self.model.creategoogleaccount:
-            debug_print("DeviceManager : Creating Google Account")
-            self.enable_google_account()
+        if str(self.model.configuresettings) == str(True) and str(self.model.configurelocationsettings) == str(True):
+            #debug_print("DeviceManager : Configure Location Settings")
+            Device.lock.acquire()
+            #Device.configurelocationsettings = True
+            Device.lock.release()
+            time.sleep(5)
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.disablesimlock) == str(True):
+            #debug_print("DeviceManager : Disable Sim Lock")
+            Device.lock.acquire()
+            #Device.disablesimlock = True
+            Device.lock.release()
+            time.sleep(5)
+
+        if str(self.model.loginwifi) == str(True):
+            #debug_print("DeviceManager : Enable WiFi")
+            #self.enable_wifi_mode()
+            time.sleep(5)
+
+        if str(self.model.creategoogleaccount) == str(True):
+            #debug_print("DeviceManager : Creating Google Account")
+            #self.enable_google_account()
             time.sleep(5)
 
         if len(self.model.installappsps) > 0:
@@ -790,7 +888,7 @@ class DeviceManager(object):
             self.install_apps_from_playstore()
             time.sleep(5)
 
-        if self.model.pairdriverapp:
+        if str(self.model.pairdriverapp) == str(True):
             debug_print("DeviceManager : Pair Driver App")
             Device.lock.acquire()
             Device.pairdriverapp = True
@@ -810,13 +908,17 @@ class DeviceManager(object):
                     self.resultswifi[self.devices.get(i).currentdevice] = self.devices.get(i).wifienabled
 
                     googleaccsettings = AccountSettings(self.devices.get(i).createdgoogleaccount, self.devices.get(i).email, self.devices.get(i).password)
-                    self.resultsgoogleacc[self.devices.get(i).currentdevice] = googleaccsettings
+                    self.resultsgoogleacc[str(self.devices.get(i).currentdevice)+"||"+str(self.devices.get(i).serialno)] = "Success: "+str(googleaccsettings.success)+" Email: "+str(googleaccsettings.email) + " Password: "+str(googleaccsettings.emailpassword)
 
                     self.resultsinstallappsps[self.devices.get(i).currentdevice] = self.devices.get(i).installedapps
 
                     self.resultspaireddriverapp[self.devices.get(i).currentdevice] = self.devices.get(i).ispaired
 
+                    self.resultssettings[self.devices.get(i).currentdevice] = "Sound: "+str(self.devices.get(i).soundconfigconfigured)+" SimLock: "+str(self.devices.get(i).disabledpin)+" Location: "+str(self.devices.get(i).locationconfigured)
+
                 # prints results
+                print "RESUUULT SETTINGS:"
+                print self.resultssettings
                 print "RESUUULT WIFI:"
                 print self.resultswifi
                 print "RESUUULT GOOGLEACCS:"

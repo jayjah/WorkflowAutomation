@@ -1,12 +1,11 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from ConfigParser import SafeConfigParser
 import sys
 
-# Strings
+from ConfigParser import SafeConfigParser
 from enum import Enum
 
+# Strings
 settings_menu = u'''Einstellungen'''
 keyboard_enter = 'KEYCODE_ENTER'
 keyboard_delete = 'KEYCODE_DEL'
@@ -22,11 +21,9 @@ def print_and_exit_script(success=False):
         exit(0)
     exit(1)
 
-
 def debug_print(value):
     print "--- ", value, " ----"
     print ("---------------------")
-
 
 def debug_error_print(mssage, error):
     print "--- ", mssage, " ----"
@@ -114,6 +111,7 @@ class Model:
         self.installappsps = []
         self.installappslf = []
         self.startapps = []
+        self.simpins = []
 
         # pair driver app config section
         self.drivername = ""
@@ -124,6 +122,7 @@ class Model:
         self.configurelockscreenapp = False
         self.configurelocationsettings = False
         self.configuresoundsettings = False
+        self.disablesimlock = False
 
         # which mode should start ? (-c = Config Mode)
         if len(sys.argv) > 0 and sys.argv[1] == '-c':
@@ -164,7 +163,7 @@ class Model:
                     if name == ownattribute:
                         setattr(self, name, value)
                         print "Added to own model: " + name + " and value: " + value
-                if str(value) == "True":
+                if bool(value):
                     self._iterateoverlistandaddproperties(self.parser.items(name))
 
     def get_current_birthday(self):
@@ -216,7 +215,7 @@ class Waiter(object):
 # Enum for handling waiting state
 #   number displays seconds to wait
 class WaitState(Enum):
-    veryshot = 1.5
+    veryshot = 0.7
     short = 3
     middle = 5
     long = 7
