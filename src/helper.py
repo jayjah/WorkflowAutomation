@@ -25,11 +25,11 @@ def print_and_exit_script(success=False):
     exit(1)
 
 
-def debug_print(value):
+def debug_print(value, log=True):
     log_file = open('./../res/log.txt', 'a+')
     value = "---- "+str(value)+ " ----\n"
     paragraph = "---------------------\n"
-    if FILELOG:
+    if FILELOG and log:
         log_file.flush()
         log_file.writelines(value)
         log_file.writelines(paragraph)

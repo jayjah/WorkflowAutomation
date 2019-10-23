@@ -15,6 +15,7 @@ import os
 import time
 import random
 
+
 # Handles all orders from device manager
 #   A device object controls a physical device
 # Slave Class
@@ -185,11 +186,15 @@ class Device(threading.Thread):
                     self.serialno) + " Starting Task: Pair Driver App")
                 self.ispaired = self.pair_driverapp()
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
-                    self.serialno) + " End Task: Pair Driver App")
+                    self.serialno) + " End Task: Pair Driver App --- Result: "+str(self.ispaired))
 
             # configre power saving mode for driver app
             if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                self.serialno) + " Starting Task: Disable Powser Saving Mode For Driver App")
                 self.powersavingmodeconfigured = self.start_battery_optimization_settings()
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Pair Driver App --- Result: "+str(self.powersavingmodeconfigured))
 
             # increase screen brightness to maximum
             if self.initialized and Device.BRIGHTNESS_HIGH and not self.increasedscreenbrightness:
@@ -204,6 +209,7 @@ class Device(threading.Thread):
                 self.googlefname) + ", Google Last Name: " + str(self.googlelname) + ", Google Birthday: " + str(
                 self.googlebirthday) + " ] ] ")
             time.sleep(1.3)
+            self.isdone = True
 
     # Goes back with android back button
     def go_back(self, times):
@@ -614,22 +620,24 @@ class Device(threading.Thread):
         return False
 
     def start_battery_optimization_settings(self):
+        self.wait()
         result = self._start_intent('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS')
-        self.wait(1)
+        self.wait()
         if result:
-            self.vc.findViewWithTextOrRaise(u'Apps nicht optimiert', root=self.vc.findViewByIdOrRaise('id/no_id/5')).touch()
+            self.vc.findViewWithTextOrRaise(u'Apps nicht optimiert',
+                                            root=self.vc.findViewByIdOrRaise('id/no_id/5')).touch()
             self.wait()
             self.vc.findViewWithTextOrRaise(u'Alle').touch()
             self.wait()
-            self.swipe_up()
-            self.swipe_up()
+            self.vc.findViewWithContentDescriptionOrRaise(u'''Anwendungen suchen''').touch()
             self.wait()
-            self.swipe_up()
-            self.swipe_up()
+            self.enter_text_adb("fahrer")
+            self.wait(1)
+            self.vc.findViewWithTextOrRaise(u'Ein', root=self.vc.findViewByIdOrRaise('id/no_id/11')).touch()
             self.wait()
-            self.swipe_up()
-
             result = True
+        self.destroy_current_running_app()
+        self.wait()
         return result
 
     # TODO click on "Zulassen" to fulfill this function

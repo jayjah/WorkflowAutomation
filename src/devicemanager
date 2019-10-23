@@ -52,13 +52,12 @@ class DevicePoolManager(object):
 
                 thread = Device(i, self.alldevs[i], phonenumber, pin)
                 self.devices.update({i: thread})
-                thread.start()
 
                 # after last device was started, go in watch mode
                 if str(i + 1) == str(self.model.countercars):
                     time.sleep(1)
                     debug_print(
-                        "DeviceManager : Last device started, DeviceManager goes in watch mode and gives orders")
+                        "DeviceManager : Last device started, set Flags to Devices")
                     self.run()
         else:
             debug_print("should init phones: " + str(self.model.countercars))
@@ -71,74 +70,71 @@ class DevicePoolManager(object):
     # Sets Class Flags in Device class to let the device threads do their job
     # Script - Flow
     def run(self):
-
+        """"""
         # waits till all devices are initialized
         while not self.alldevicesinitiliazed:
             # wait 5 sec
             # TODO check error state of all threads&& adb shell sendevent /devices and make error handling
             self.check_if_all_devices_are_initialized()
             debug_print("DeviceManager : ⌛ Not all devices are initialized")
-            time.sleep(5)
+            time.sleep(1)
 
         debug_print("DeviceManager : ✅ All devices are initialized")
 
+        debug_print("DeviceManager : Set Config Flags")
+
         if str(self.model.configuresettings) == str(True) and str(self.model.configuresoundsettings) == str(True):
-            # debug_print("DeviceManager : Set Flag - Configure Sound Settings")
+            debug_print("DeviceManager - Flag : Configure Sound Settings")
             Device.lock.acquire()
-            # Device.configuresoundsettings = True
+            Device.configuresoundsettings = True
             Device.lock.release()
-            #time.sleep(5)
 
         if str(self.model.configuresettings) == str(True) and str(self.model.configurelocationsettings) == str(True):
-            # debug_print("DeviceManager : Set Flag - Configure Location Settings")
+            debug_print("DeviceManager - Flag : Configure Location Settings")
             Device.lock.acquire()
-            # Device.configurelocationsettings = True
+            Device.configurelocationsettings = True
             Device.lock.release()
-            #time.sleep(5)
 
         if str(self.model.configuresettings) == str(True) and str(self.model.disablesimlock) == str(True):
-            # debug_print("DeviceManager : Set Flag - Disable Sim Lock")
+            debug_print("DeviceManager - Flag : Disable Sim Lock")
             Device.lock.acquire()
-            # Device.disablesimlock = True
+            Device.disablesimlock = True
             Device.lock.release()
-            #time.sleep(5)
 
         if str(self.model.loginwifi) == str(True):
-            debug_print("DeviceManager : Set Flag - Enable WiFi")
-            # self.enable_wifi_mode()
-            #time.sleep(5)
+            debug_print("DeviceManager - Flag : Enable WiFi")
+            self.enable_wifi_mode()
 
         if str(self.model.creategoogleaccount) == str(True):
-            debug_print("DeviceManager : Set Flag - Creating Google Account")
-            # self.enable_google_account()
-            #time.sleep(5)
+            debug_print("DeviceManager - Flag : Creating Google Account")
+            self.enable_google_account()
 
         if len(self.model.installappsps) > 0:
-            debug_print("DeviceManager : Set Flag - Install apps from Play Store")
-            # self.install_apps_from_playstore()
-            #time.sleep(5)
+            debug_print("DeviceManager - Flag : Install apps from Play Store")
+            self.install_apps_from_playstore()
 
         if str(self.model.pairdriverapp) == str(True):
-            # debug_print("DeviceManager : Set Flag - Pair Driver App")
+            debug_print("DeviceManager - Flag : Pair Driver App")
             Device.lock.acquire()
-            # Device.pairdriverapp = True
+            Device.pairdriverapp = True
             Device.pairdriverappname = self.model.drivername
             Device.pairdriverapppw = self.model.driverpw
             Device.lock.release()
-            #time.sleep(5)
 
         if str(self.model.configuresettings) == str(True) and str(self.model.configurepowersavingmode) == str(True):
-            debug_print("DeviceManager : Set Flag - Disable Power Saving Mode For Driver App")
+            debug_print("DeviceManager - Set Flag : Disable Power Saving Mode For Driver App")
             Device.lock.acquire()
             Device.configurepowersavingmode = True
             Device.lock.release()
-            time.sleep(5)
+
+        debug_print("DeviceManager : Start Threads to do their job")
+        self.start_threads()
 
         # wait till all devices are done with their work
         while not self.alldevicesdone:
             if self.check_if_all_devices_are_initialized():
                 self.check_if_all_devices_are_done()
-                debug_print("DeviceManager : ⌛️ All devices are initialized. But Not all all of them are done")
+                debug_print("DeviceManager : ⌛️ All devices are doing their job. But Not all all of them are done")
 
                 # store all results
                 for i in range(int(self.model.countercars)):
@@ -185,6 +181,11 @@ class DevicePoolManager(object):
         # Close automator
         debug_print("DeviceManager : Close Session")
         print_and_exit_script()
+
+    def start_threads(self):
+        for i in range(int(self.model.countercars)):
+            thread = self.devices.get(i)
+            thread.start()
 
     # Checks for connected devices with adb and reformat that output
     def adb_devices(self):
