@@ -100,6 +100,8 @@ class Model:
         self.taxicompany = False
         self.rentcompany = False
         self.countercars = 0
+        self.allcars = 0
+        self.currentfirstcar = 0
         self.phonenumbersgiven = False
         self.phonenumbers = []
 

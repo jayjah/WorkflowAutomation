@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
-
+import collections
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
 
 from src.helper import Waiter, debug_print, debug_error_print, keyboard_enter
@@ -15,11 +15,15 @@ import os
 import time
 import random
 
+class BaseDevice:
+    def __init__(self):
+        print "test"
+
 
 # Handles all orders from device manager
 #   A device object controls a physical device
 # Slave Class
-class Device(threading.Thread):
+class Device(threading.Thread, BaseDevice):
     lock = threading.Lock()
     waiter = Waiter()
 
@@ -43,6 +47,7 @@ class Device(threading.Thread):
 
     def __init__(self, number, serialno, telephonenummber=None, pin=None):
         threading.Thread.__init__(self)
+        BaseDevice.__init__(self)
 
         # density is used to interact with screen swipes (e.g. lock screen touch)
         # view x and y coordinates multiplied with density results in real device dips coordinates
@@ -247,6 +252,66 @@ class Device(threading.Thread):
             time.sleep(sec)
         self.vc.dump(window=-1)
 
+    # Clever Waits
+    def wait_clever(self, searchstring=None, sec=None, mode="id", justrefresh=False):
+        # waits till screen changed
+        print "Wait Clever : Start"
+        if justrefresh:
+            print "Wait CLever : Just Refresh"
+            found = False
+            while not found:
+                print "Wait Clever : Round"
+                currentviews = self.vc.views
+                currentids = self.get_uniqueids_from_views(self.vc.views)
+                self.vc.dump(window=-1, sleep=0.05)
+                newframeviews = self.vc.views
+                newids = self.get_uniqueids_from_views(self.vc.views)
+                result = self._compare_viewids(currentids, newids)
+                if result:
+                    print "Wait Clever : End"
+                    found = True
+                    return
+
+        elif searchstring is not None:
+            print "Wait Clever : Search String: " + searchstring + " Mode: " + mode
+            switcher = {
+                "id": -1,
+                "text": 0,
+                "content": 1,
+                "own": 2,
+            }
+            found = False
+            while not found:
+                print "Wait Clever : Round"
+                self.vc.dump(window=-1, sleep=0.05)
+                if switcher.get(mode) == -1:
+                    if self.vc.findViewById(searchstring) is not None:
+                        print "Wait Clever : End"
+                        found = True
+                        return
+                elif switcher.get(mode) == 0:
+                    if self.vc.findViewWithText(searchstring) is not None:
+                        print "Wait Clever : End"
+                        found = True
+                        return
+                elif switcher.get(mode) == 1:
+                    if self.vc.findViewWithContentDescription(searchstring) is not None:
+                        print "Wait Clever : End"
+                        found = True
+                        return
+                elif switcher.get(mode) == 2:
+                    print("not implemented")
+
+    def get_uniqueids_from_views(self, views):
+        ids = []
+        for view in views:
+            if view is not None and view.getUniqueId() is not None:
+                ids.append(view.getUniqueId())
+        return ids
+
+    def _compare_viewids(self, x, y):
+        return collections.Counter(x) == collections.Counter(y)
+
     # TODO
     # checks if device is on home screen or on home menu
     # at the moment it's not possible to differ between them
@@ -259,7 +324,12 @@ class Device(threading.Thread):
         else:
             return False
 
-    def configure_homescreen(self):
+    # TODO test new wait_clever method at the following to compare if it makes senses to crawl for changes
+
+    def configure_homescreen_new(self):
+        print "not implemented"
+
+    def configure_homescreen_old(self):
         #self.device.dragDip((210.29, 204.57), (211.43, 206.86), 2000, 5, 0)
         #self.wait()
         #self.vc.findViewWithContentDescriptionOrRaise(u'''Seite 0 von 2Entfernen''').touch()
@@ -585,7 +655,7 @@ class Device(threading.Thread):
             print "View id of: Gmail-Adresse erstellen: " + str(viewid)
             self.touch_by_id(viewid)
             print("should be selected")
-            self.email = "tax1"+ str(self.googlelname) + str(self.currentdevice)
+            self.email = "tax" + str(self.googlelname) + str(self.currentdevice)
             if self.email.endswith('.'):
                 self.email.replace('.', '')
             self.enter_text_adb(self.email)
@@ -593,7 +663,7 @@ class Device(threading.Thread):
             if self.vc.findViewWithText(u'So melden Sie sich an') is not None:
                 self.enter_text_adb(self.email)
             self.wait()
-            self.email = "tax1"+ str(self.googlelname) + str(self.currentdevice)+"@gmail.com"
+            self.email = "tax" + str(self.googlelname) + str(self.currentdevice)+"@gmail.com"
             self.wait(1)
             self.device.press('KEYCODE_ENTER')
 

@@ -3,6 +3,7 @@
 import time
 
 from subprocess import check_output
+import subprocess
 from src.device import Device
 
 # Handles all devices, give orders to devices for given config
@@ -38,6 +39,7 @@ class DevicePoolManager(object):
         # start threads&& adb shell sendevent /devices if enough connected phones exist
         self.devices = {}
         if self.check_phones_connected():
+            self.currdevicenumber = int(self.model.currentfirstcar)
             for i in range(int(self.model.countercars)):
 
                 phonenumber = None
@@ -49,9 +51,9 @@ class DevicePoolManager(object):
                 pin = None
                 if str(self.model.disablesimlock) == str(True):
                     pin = int(str(self.model.simpins).split(',')[i])
-
-                thread = Device(i, self.alldevs[i], phonenumber, pin)
+                thread = Device(self.currdevicenumber, self.alldevs[i], phonenumber, pin)
                 self.devices.update({i: thread})
+                self.currdevicenumber = self.currdevicenumber+1
 
                 # after last device was started, go in watch mode
                 if str(i + 1) == str(self.model.countercars):
@@ -273,6 +275,10 @@ class DevicePoolManager(object):
 class Controller(object):
 
     def __init__(self):
+        cmd = ['gnome-terminal', '-x', 'bash', '-c']
+       # name_of_log_file = "./../res/log-bash.sh"
+        your_proc = subprocess.Popen(cmd)# + [(name_of_log_file)])
+
         self.model = Model()
         debug_print("init Controller")
         self.dm = DevicePoolManager(self.model)
