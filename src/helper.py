@@ -19,7 +19,6 @@ def print_and_exit_script(success=False):
     print ("---- End Scipt ----")
     print ("---------------------")
     print ("---------------------")
-    log_file.close()
     if success:
         exit(0)
     exit(1)

@@ -34,8 +34,8 @@ class Device(threading.Thread):
     creategoogleaccount = False
     phonenumbersgiven = False
     pairdriverapp = False
-    pairdriverappname = ''
-    pairdriverapppw = ''
+    #pairdriverappname = ''
+    #pairdriverapppw = ''
     configuresoundsettings = False
     configurelocationsettings = False
     configurepowersavingmode = False
@@ -67,6 +67,8 @@ class Device(threading.Thread):
         self.initialized = False
         self.wifienabled = False
         # elf.wifistate = Error()
+        self.pairdriverappname = ''
+        self.pairdriverapppw = ''
         self.installedappsappstore = 0
         self.installedapps = dict()
         self.googlefname = ''
@@ -122,6 +124,7 @@ class Device(threading.Thread):
     # Runner Method from slave
     def run(self):
         while not self.isdone:
+            self.wait()
             # disable sim lock
             if self.initialized and Device.disablesimlock and not self.disabledpin:
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
@@ -181,7 +184,7 @@ class Device(threading.Thread):
                     self.serialno) + " End Task: Installing Apps From Play Store")
 
             # pair driver app
-            if self.initialized and Device.pairdriverapp and not self.ispaired and Device.pairdriverappname != '' and Device.pairdriverapppw != '':
+            if self.initialized and Device.pairdriverapp and not self.ispaired and self.pairdriverappname != '' and self.pairdriverapppw != '':
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Pair Driver App")
                 self.ispaired = self.pair_driverapp()
@@ -198,7 +201,7 @@ class Device(threading.Thread):
 
             # increase screen brightness to maximum
             if self.initialized and Device.BRIGHTNESS_HIGH and not self.increasedscreenbrightness:
-                self.increase_screen_brigthness(times=5)
+                #self.increase_screen_brigthness(times=5)
                 self.increasedscreenbrightness = True
 
             # print state of device
@@ -208,7 +211,16 @@ class Device(threading.Thread):
                 self.createdgoogleaccount) + "[ Google First Name: " + str(
                 self.googlefname) + ", Google Last Name: " + str(self.googlelname) + ", Google Birthday: " + str(
                 self.googlebirthday) + " ] ] ")
-            time.sleep(1.3)
+            self.wait(1)
+
+            self.configure_homescreen()
+
+            try:
+                self.disable_dev_options()
+                self.reboot_device()
+                self.isdone = True
+            except:
+                self.isdone = True
             self.isdone = True
 
     # Goes back with android back button
@@ -216,6 +228,14 @@ class Device(threading.Thread):
         for i in range(times):
             self.wait()
             self.device.press('BACK')
+
+    def disable_device_lock_screen(self):
+        self.device.shell("locksettings clear --old 751268")
+        self.wait(1)
+
+    def enable_device_lock_screen(self):
+        self.device.shell("locksettings set-pattern 751268")
+        self.wait(1)
 
     # Waits
     def wait(self, sec=None):
@@ -238,6 +258,49 @@ class Device(threading.Thread):
             return True
         else:
             return False
+
+    def configure_homescreen(self):
+        #self.device.dragDip((210.29, 204.57), (211.43, 206.86), 2000, 5, 0)
+        #self.wait()
+        #self.vc.findViewWithContentDescriptionOrRaise(u'''Seite 0 von 2Entfernen''').touch()
+        #self.wait()
+        #if self.vc.findViewWithTextOrRaise(u'Seite löschen?') is not None:
+        #    self.vc.findViewWithTextOrRaise(u'Löschen').touch()
+        #self.wait()
+        #self.go_back(1)
+        #self.device.dragDip((60.57, 757.71), (77.71, 744.0), 6000, 20, 0)
+        #self.wait()
+        #self.device.touch(212.0, 964.0, 0)
+        #self.wait()
+        #self.device.dragDip((74.29, 774.86), (84.57, 756.57), 6000, 20, 0)
+        #self.wait()
+        #self.device.touchDip(121.14, 620.57, 0)
+        #self.wait()
+        #self.device.dragDip((205.71, 801.14), (204.57, 785.14), 6000, 20, 0)
+        #self.wait()
+        #self.vc.findViewWithContentDescriptionOrRaise(u'''Von Start entfernen''').touch()
+        #self.wait()
+        self.device.dragDip((60.57, 632.0), (60.57, 610.29), 6000, 20, 0)
+        self.wait()
+        self.vc.findViewWithContentDescriptionOrRaise(u'''Elemente auswählen''').touch()
+        self.wait(1)
+        self.vc.findViewWithContentDescriptionOrRaise(u'''Kalender, Nicht ausgewählt''').touch()
+        self.wait(1)
+        self.vc.findViewWithContentDescriptionOrRaise(u'''OneDrive, Nicht ausgewählt''').touch()
+        self.wait()
+        self.vc.findViewWithContentDescriptionOrRaise(u'''Von Start entfernen, Taste''').touch()
+        self.wait()
+        self.swipe_up()
+        self.wait()
+        self.vc.findViewWithContentDescriptionOrRaise(u'''Taxi.de Fahrer''').longTouch()
+        self.wait()
+        self.swipe_up()
+        self.wait()
+        self.device.touchDip(160.0, 139.43, 0)
+        self.wait()
+        self.vc.findViewWithContentDescriptionOrRaise(u'''Maps''').longTouch()
+        self.wait()
+
 
     def go_to_home_screen(self):
         self.device.shell('input keyevent KEYCODE_HOME')
@@ -458,13 +521,16 @@ class Device(threading.Thread):
         self.wait(1)
         if self.start_creating_google_acc():
             self.wait(1)
-            self.touch_by_text(u'''Konto erstellen''', True)
-            self.touch_by_text(u'''Für mich selbst''', True)
-            self.type_by_id(self.googlefname + str(self.currentdevice),
-                            "firstName")  # +str(000)+str(self.currentdevice)
+            self.vc.findViewWithTextOrRaise(u'Konto erstellen').touch()
+            self.wait()
+            self.vc.findViewWithTextOrRaise(u'Für mich selbst').touch()
+            #            self.touch_by_text(u'''Konto erstellen''', True)
+            #self.touch_by_text(u'''Für mich selbst''', True)
+            self.wait()
+            self.type_by_id(self.googlefname, "firstName")  # +str(000)+str(self.currentdevice)
             self.device.press('KEYCODE_ENTER')
             self.wait(1)
-            self.type_by_id(self.googlelname + str(self.currentdevice), "lastName")
+            self.type_by_id(self.googlelname, "lastName")
             self.device.press('KEYCODE_ENTER')
             self.wait(1)
             if self.find_by_text(u'Bestätigen Sie, dass Sie kein Roboter sind'):
@@ -519,15 +585,21 @@ class Device(threading.Thread):
             print "View id of: Gmail-Adresse erstellen: " + str(viewid)
             self.touch_by_id(viewid)
             print("should be selected")
-            self.email = str(self.googlefname) + str(self.googlelname) + "000" + str(self.currentdevice) + "@gmail.com"
+            self.email = "tax1"+ str(self.googlelname) + str(self.currentdevice)
             if self.email.endswith('.'):
                 self.email.replace('.', '')
             self.enter_text_adb(self.email)
+            self.wait()
+            if self.vc.findViewWithText(u'So melden Sie sich an') is not None:
+                self.enter_text_adb(self.email)
+            self.wait()
+            self.email = "tax1"+ str(self.googlelname) + str(self.currentdevice)+"@gmail.com"
             self.wait(1)
             self.device.press('KEYCODE_ENTER')
 
             # press password
-            self.password = self.pw_generator()
+            self.password = "tax"+str(self.googlelname)+"000!"
+            #self.password = self.pw_generator()
             print "Generated Password: " + self.password
             self.enter_text_adb(self.password)
             self.wait(1)
@@ -558,8 +630,10 @@ class Device(threading.Thread):
             # weiter button
             self.device.touchDip(314.86, 780, 0)
             self.wait(3)
-            if self.find_by_text(u'Einen Moment noch…'):
-                self.touch_by_text(u'Bestätigen', True)
+            if self.vc.findViewWithText(u'Einen Moment noch…') is not None:
+                self.vc.findViewWithTextOrRaise(u'Bestätigen').touch()
+            #if self.find_by_text(u'Einen Moment noch…'):
+            #    self.touch_by_text(u'Bestätigen', True)
             self.wait(1)
             result = True
         else:
@@ -604,7 +678,6 @@ class Device(threading.Thread):
         return self._start_intent('android.settings.SETTINGS')
 
     def start_location_settings(self):
-        self.wait()
         if self._start_intent('android.settings.LOCATION_SOURCE_SETTINGS'):
             self.wait(1)
             if self.find_by_text('Standort, Aus'):
@@ -714,7 +787,7 @@ class Device(threading.Thread):
     def increase_standard_volume_keycode(self, times=1):
         for i in range(times):
             self.device.press('KEYCODE_VOLUME_UP')
-            self.wait()
+            #self.wait()
 
     def get_current_packagename(self):
         try:
@@ -748,33 +821,14 @@ class Device(threading.Thread):
             self.start_sound_settings()
             self.wait(2)
             self.touch_by_text(u'Lautstärke', True)
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.device.dragDip((81.14, 254.86), (379.43, 253.71), 1000, 20, 0)
             self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.device.dragDip((73.14, 160.0), (378.29, 161.14), 1000, 20, 0)
             self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Medien''').touch()
+            self.device.dragDip((78.86, 344.0), (379.43, 345.14), 1000, 20, 0)
             self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Klingelton''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''Benachrichtigungen''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait()
-            self.vc.findViewWithContentDescriptionOrRaise(u'''System''').touch()
-            self.wait()
-            self.go_back(1)
-            self.wait()
-            self.increase_standard_volume_keycode(times=16)
+            self.device.dragDip((84.57, 437.71), (379.14, 435.43), 1000, 20, 0)
+
             self.wait()
             result = True
         except:
@@ -794,8 +848,8 @@ class Device(threading.Thread):
         self.device.shell('am start -n com.talex.mytaxidriver/.activities.main.MainActivity')
         self.wait(3)
         self._check_permission_app()
-        self.type_by_id(Device.pairdriverappname, "com.talex.mytaxidriver:id/nickET")
-        self.type_by_id(Device.pairdriverapppw, "com.talex.mytaxidriver:id/passET")
+        self.type_by_id(self.pairdriverappname, "com.talex.mytaxidriver:id/nickET")
+        self.type_by_id(self.pairdriverapppw, "com.talex.mytaxidriver:id/passET")
         self.touch_by_id("com.talex.mytaxidriver:id/BtnLogin")
         self.wait(1)
         if self.find_by_id("android:id/search_button") is not False:
@@ -823,11 +877,18 @@ class Device(threading.Thread):
         install = self.find_by_text("Installieren")
         if install:
             self.touch_by_text("Installieren", True)
-            if self.find_by_text(u'Kontoeinrichtung abschließen') is not False:
+            if self.vc.findViewWithText(u'Kontoeinrichtung abschließen') is not False:
                 try:
-                    self.touch_by_text(u'WEITER')
-                    self.touch_by_text(u'ÜBERSPRINGEN', True)
+                    self.device.touchDip(166.86, 797.71, 0)
+                    self.wait()
+                    self.device.touchDip(222.86, 776.0, 0)
+                    #self.touch_by_text(u'WEITER')
+                    #self.touch_by_text(u'ÜBERSPRINGEN', True)
                 except:
+                    self.device.touchDip(166.86, 797.71, 0)
+                    self.wait()
+                    self.device.touchDip(222.86, 776.0, 0)
+
                     print ("Error")
             if self.find_by_text(u'Weiter') is not False:
                 try:
@@ -841,9 +902,27 @@ class Device(threading.Thread):
         isinstalled = self._check_if_app_is_installed(appname)
         if isinstalled:
             result = True
+            self.wait()
+        self.wait()
         self.destroy_current_running_app()
         self.wait(1)
         return result
+
+    def reboot_device(self):
+        self.device.shell('reboot')
+
+    def disable_dev_options(self):
+        self.start_settings()
+        self.wait(1)
+        self.swipe_up()
+        self.wait()
+        self.swipe_up()
+        self.wait()
+        self.vc.findViewWithTextOrRaise(u'Entwickleroptionen', root=self.vc.findViewByIdOrRaise('id/no_id/30')).touch()
+        self.wait()
+        self.vc.findViewWithTextOrRaise(u'Entwickleroptionen, Ein').touch()
+
+
 
     # not used any more?!
     def search_app_in_appstore(self, appname):

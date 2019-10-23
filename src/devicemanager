@@ -109,16 +109,21 @@ class DevicePoolManager(object):
             debug_print("DeviceManager - Flag : Creating Google Account")
             self.enable_google_account()
 
-        if len(self.model.installappsps) > 0:
+        if len(self.model.installappsps) > 0 and str(self.model.installapps) == str(True):
             debug_print("DeviceManager - Flag : Install apps from Play Store")
             self.install_apps_from_playstore()
 
         if str(self.model.pairdriverapp) == str(True):
             debug_print("DeviceManager - Flag : Pair Driver App")
             Device.lock.acquire()
+
             Device.pairdriverapp = True
-            Device.pairdriverappname = self.model.drivername
-            Device.pairdriverapppw = self.model.driverpw
+            for i in range(int(self.model.countercars)):
+                self.devices.get(i).pairdriverappname = str(self.model.drivername).split(',')[i]
+                self.devices.get(i).pairdriverapppw = str(self.model.driverpw).split(',')[i]
+                #thread.start()
+            #Device.pairdriverappname = self.model.drivername
+            #Device.pairdriverapppw = self.model.driverpw
             Device.lock.release()
 
         if str(self.model.configuresettings) == str(True) and str(self.model.configurepowersavingmode) == str(True):
@@ -147,25 +152,28 @@ class DevicePoolManager(object):
                         googleaccsettings.success) + " Email: " + str(googleaccsettings.email) + " Password: " + str(
                         googleaccsettings.emailpassword)
 
-                    self.resultsinstallappsps[self.devices.get(i).currentdevice] = self.devices.get(i).installedapps
+                    self.resultsinstallappsps[str(self.devices.get(i).currentdevice) + "||" + str(
+                        self.devices.get(i).serialno)] = self.devices.get(i).installedapps
 
-                    self.resultspaireddriverapp[self.devices.get(i).currentdevice] = self.devices.get(i).ispaired
+                    self.resultspaireddriverapp[str(self.devices.get(i).currentdevice) + "||" + str(
+                        self.devices.get(i).serialno)] = "Success: "+str(self.devices.get(i).ispaired)+ " Username: "+str(self.devices.get(i).pairdriverappname)+" Passwort: "+str(self.devices.get(i).pairdriverapppw)
 
-                    self.resultssettings[self.devices.get(i).currentdevice] = "Sound: " + str(
+                    self.resultssettings[str(self.devices.get(i).currentdevice) + "||" + str(
+                        self.devices.get(i).serialno)] = "Sound: " + str(
                         self.devices.get(i).soundconfigconfigured) + " SimLock: " + str(
                         self.devices.get(i).disabledpin) + " Location: " + str(self.devices.get(i).locationconfigured)
 
                 # prints results
-                print "RESUUULT SETTINGS:"
-                print self.resultssettings
-                print "RESUUULT WIFI:"
-                print self.resultswifi
-                print "RESUUULT GOOGLEACCS:"
-                print self.resultsgoogleacc
-                print "RESUUULT INSTALLEDAPPS:"
-                print self.resultsinstallappsps
-                print "RESUUULT PAIRED DRIVER APP"
-                print self.resultspaireddriverapp
+                debug_print("RESUUULT SETTINGS:")
+                debug_print(self.resultssettings)
+                debug_print("RESUUULT WIFI:")
+                debug_print(self.resultswifi)
+                debug_print("RESUUULT GOOGLEACCS:")
+                debug_print(self.resultsgoogleacc)
+                debug_print("RESUUULT INSTALLEDAPPS:")
+                debug_print(self.resultsinstallappsps)
+                debug_print("RESUUULT PAIRED DRIVER APP")
+                debug_print(self.resultspaireddriverapp)
 
                 # wait 10 sec
                 time.sleep(10)
