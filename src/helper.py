@@ -96,6 +96,8 @@ class InteractiveMode(object):
 class Model:
 
     def __init__(self):
+        # gui flag
+        self.gui = False
         # cred config section
         self.taxicompany = False
         self.rentcompany = False
@@ -135,14 +137,18 @@ class Model:
 
         # configure settings config section
         self.configurepowersavingmode = False
+        self.configurehomescreen = False
         self.configurelockscreenapp = False
         self.configurelocationsettings = False
         self.configuresoundsettings = False
         self.disablesimlock = False
+        self.configurescreenbrightness = False
+        self.disabledevoptions = False
+        self.rebootdevicewhenfinished = False
 
         # which mode should start ? (-c = Config Mode)
         if len(sys.argv) > 0 and sys.argv[1] == '-c':
-            debug_print("Config Mode")
+            debug_print("Read Config")
             self.parser = SafeConfigParser()
             self.mode = ScriptMode.configmode
             self.interactivemode = None
@@ -157,6 +163,13 @@ class Model:
                 print '  Options:', self.parser.options(section_name)
                 for name, value in self.parser.items(section_name):
                     print '  %s = %s' % (name, value)
+
+
+        if len(sys.argv) > 2:
+            if sys.argv[2] == '-g':
+                debug_print("GUI will be displayed")
+                self.gui = True
+
         else:
             debug_print("Interactive Mode")
             self.mode = ScriptMode.interactivemode

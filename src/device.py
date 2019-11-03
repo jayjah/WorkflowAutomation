@@ -1,7 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import sys
 import collections
+from timeit import timeit
+
 from com.dtmilano.android.viewclient import ViewClient, EditText, TextView
 
 from src.helper import Waiter, debug_print, debug_error_print, keyboard_enter
@@ -15,9 +18,10 @@ import os
 import time
 import random
 
+
 class BaseDevice:
     def __init__(self):
-        print "test"
+        print "Base Device Class initialized"
 
 
 # Handles all orders from device manager
@@ -27,8 +31,8 @@ class Device(threading.Thread, BaseDevice):
     lock = threading.Lock()
     waiter = Waiter()
 
-    # global flags
-    BRIGHTNESS_HIGH = True
+    # MAXIMUM times to let threads run through run method
+    MAX_RUN = 3
 
     # Flags to let the threads run independently on their own and do work
     # Flags will be set from DeviceManager
@@ -38,12 +42,16 @@ class Device(threading.Thread, BaseDevice):
     creategoogleaccount = False
     phonenumbersgiven = False
     pairdriverapp = False
-    #pairdriverappname = ''
-    #pairdriverapppw = ''
+    # pairdriverappname = ''
+    # pairdriverapppw = ''
     configuresoundsettings = False
     configurelocationsettings = False
     configurepowersavingmode = False
     disablesimlock = False
+    configurehomescreen = False
+    BRIGHTNESS_HIGH = False
+    disabledevoptions = False
+    rebootdevicewhenfinished = False
 
     def __init__(self, number, serialno, telephonenummber=None, pin=None):
         threading.Thread.__init__(self)
@@ -91,6 +99,14 @@ class Device(threading.Thread, BaseDevice):
         self.PIN = pin
         self.disabledpin = False
         self.increasedscreenbrightness = False
+        self.homescreenconfigured = False
+        self.disableddevoptions = False
+        self.rebooteddevice = False
+        self.waitforio = False
+        self.ioreason = ""
+
+        # how many times got this thread through run method, till it's possible to say that this one is done
+        self.runnercounter = 0
 
         # device specific settings
         self.currentdevice = number
@@ -129,7 +145,7 @@ class Device(threading.Thread, BaseDevice):
     # Runner Method from slave
     def run(self):
         while not self.isdone:
-            self.wait()
+            self.wait(1.0)
             # disable sim lock
             if self.initialized and Device.disablesimlock and not self.disabledpin:
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
@@ -159,7 +175,7 @@ class Device(threading.Thread, BaseDevice):
             if self.initialized and not self.wifienabled and Device.wifissid is not None and Device.wifipw is not None:
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Enable Wifi Settings")
-                self.wifienabled = self.wifi_login()
+                self.wifienabled = self.wifi_login_new()
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " End Task: Enable Wifi Settings --- Result: " + str(self.wifienabled))
 
@@ -194,20 +210,34 @@ class Device(threading.Thread, BaseDevice):
                     self.serialno) + " Starting Task: Pair Driver App")
                 self.ispaired = self.pair_driverapp()
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
-                    self.serialno) + " End Task: Pair Driver App --- Result: "+str(self.ispaired))
+                    self.serialno) + " End Task: Pair Driver App --- Result: " + str(self.ispaired))
 
             # configre power saving mode for driver app
             if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
-                self.serialno) + " Starting Task: Disable Powser Saving Mode For Driver App")
+                    self.serialno) + " Starting Task: Disable Powser Saving Mode For Driver App")
                 self.powersavingmodeconfigured = self.start_battery_optimization_settings()
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
-                    self.serialno) + " End Task: Pair Driver App --- Result: "+str(self.powersavingmodeconfigured))
+                    self.serialno) + " End Task: Pair Driver App --- Result: " + str(self.powersavingmodeconfigured))
 
             # increase screen brightness to maximum
             if self.initialized and Device.BRIGHTNESS_HIGH and not self.increasedscreenbrightness:
-                #self.increase_screen_brigthness(times=5)
+                # self.increase_screen_brigthness(times=5)
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Increase Screen Brightness to MAX")
                 self.increasedscreenbrightness = True
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Increase Screen Brightness to MAX --- Result: " + str(
+                    self.increasedscreenbrightness))
+
+            # configure homescreen
+            if self.initialized and Device.configurehomescreen and not self.homescreenconfigured:
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Configure Homescreen")
+                self.homescreenconfigured = self.configure_homescreen()
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Configure Homescreen --- Result: " + str(
+                    self.increasedscreenbrightness))
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
@@ -216,17 +246,26 @@ class Device(threading.Thread, BaseDevice):
                 self.createdgoogleaccount) + "[ Google First Name: " + str(
                 self.googlefname) + ", Google Last Name: " + str(self.googlelname) + ", Google Birthday: " + str(
                 self.googlebirthday) + " ] ] ")
+
             self.wait(1)
 
-            self.configure_homescreen()
+            self.runnercounter = self.runnercounter + 1
+            if self.runnercounter >= Device.MAX_RUN:
+                self.isdone = True
 
-            try:
-                self.disable_dev_options()
-                self.reboot_device()
-                self.isdone = True
-            except:
-                self.isdone = True
-            self.isdone = True
+            if self.isdone:
+                try:
+                    if self.initialized and Device.disabledevoptions:
+                        debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                            self.serialno) + " Task: Disable Dev Options")
+                        self.disableddevoptions = self.disable_dev_options()
+                    if self.initialized and Device.rebootdevicewhenfinished:
+                        debug_error_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                            self.serialno) + " Task: Reboot")
+                        self.rebooteddevice = self.reboot_device()
+                except:
+                    debug_error_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Task: Should reboot NOW!")
 
     # Goes back with android back button
     def go_back(self, times):
@@ -252,18 +291,23 @@ class Device(threading.Thread, BaseDevice):
             time.sleep(sec)
         self.vc.dump(window=-1)
 
-    # Clever Waits
+    # Waits for given argument 'searchstring' to appear on screen
     def wait_clever(self, searchstring=None, sec=None, mode="id", justrefresh=False):
         # waits till screen changed
         print "Wait Clever : Start"
+        roundcounter = 0
         if justrefresh:
             print "Wait CLever : Just Refresh"
             found = False
             while not found:
                 print "Wait Clever : Round"
+                if roundcounter>=20:
+                    print "Wait Clever : Max Rounds of 20 reached, skip"
+                    return
                 currentviews = self.vc.views
                 currentids = self.get_uniqueids_from_views(self.vc.views)
                 self.vc.dump(window=-1, sleep=0.05)
+                time.sleep(0.05)
                 newframeviews = self.vc.views
                 newids = self.get_uniqueids_from_views(self.vc.views)
                 result = self._compare_viewids(currentids, newids)
@@ -271,6 +315,7 @@ class Device(threading.Thread, BaseDevice):
                     print "Wait Clever : End"
                     found = True
                     return
+                roundcounter = roundcounter + 1
 
         elif searchstring is not None:
             print "Wait Clever : Search String: " + searchstring + " Mode: " + mode
@@ -278,29 +323,69 @@ class Device(threading.Thread, BaseDevice):
                 "id": -1,
                 "text": 0,
                 "content": 1,
-                "own": 2,
+                "owntext": 2,
+                "ownid": 3,
+                "ownmixssid": 10,
             }
             found = False
             while not found:
                 print "Wait Clever : Round"
+                if roundcounter>=20:
+                    print "Wait Clever : Max Rounds of 20 reached, skip"
+                    return
                 self.vc.dump(window=-1, sleep=0.05)
+                time.sleep(0.05)
                 if switcher.get(mode) == -1:
+                    print "Wait Clever : In Mode -1"
+
                     if self.vc.findViewById(searchstring) is not None:
                         print "Wait Clever : End"
                         found = True
                         return
                 elif switcher.get(mode) == 0:
+                    print "Wait Clever : In Mode 0"
+
                     if self.vc.findViewWithText(searchstring) is not None:
                         print "Wait Clever : End"
                         found = True
                         return
                 elif switcher.get(mode) == 1:
+                    print "Wait Clever : In Mode 1"
+
                     if self.vc.findViewWithContentDescription(searchstring) is not None:
                         print "Wait Clever : End"
                         found = True
                         return
                 elif switcher.get(mode) == 2:
+                    print "Wait Clever : In Mode 2"
+
+                    viewid = self.check_if_screen_contains(searchstring)
+                    if viewid is not None:
+                        if self.vc.findViewById(viewid) is not None:
+                            print "Wait Clever : End"
+                            found= True
+                            return
+                    else:
+                        if self.vc.findViewWithText(searchstring) is not None:
+                            print "Wait Clever : End"
+                            found= True
+                            return
+                elif switcher.get(mode) == 3:
                     print("not implemented")
+
+                elif switcher.get(mode) == 10:
+                    for entry in self.vc.views:
+                        text = entry.getText().encode('utf-8')
+                        try:
+                            print str(entry).encode('utf-8')
+                            if entry is not None and text is not None and Device.wifissid in text:
+                                print "Wait Clever : End"
+                                found = True
+                                return
+                        except:
+                            print ("error in view")
+
+                roundcounter = roundcounter +1
 
     def get_uniqueids_from_views(self, views):
         ids = []
@@ -330,26 +415,26 @@ class Device(threading.Thread, BaseDevice):
         print "not implemented"
 
     def configure_homescreen_old(self):
-        #self.device.dragDip((210.29, 204.57), (211.43, 206.86), 2000, 5, 0)
-        #self.wait()
-        #self.vc.findViewWithContentDescriptionOrRaise(u'''Seite 0 von 2Entfernen''').touch()
-        #self.wait()
-        #if self.vc.findViewWithTextOrRaise(u'Seite löschen?') is not None:
+        # self.device.dragDip((210.29, 204.57), (211.43, 206.86), 2000, 5, 0)
+        # self.wait()
+        # self.vc.findViewWithContentDescriptionOrRaise(u'''Seite 0 von 2Entfernen''').touch()
+        # self.wait()
+        # if self.vc.findViewWithTextOrRaise(u'Seite löschen?') is not None:
         #    self.vc.findViewWithTextOrRaise(u'Löschen').touch()
-        #self.wait()
-        #self.go_back(1)
-        #self.device.dragDip((60.57, 757.71), (77.71, 744.0), 6000, 20, 0)
-        #self.wait()
-        #self.device.touch(212.0, 964.0, 0)
-        #self.wait()
-        #self.device.dragDip((74.29, 774.86), (84.57, 756.57), 6000, 20, 0)
-        #self.wait()
-        #self.device.touchDip(121.14, 620.57, 0)
-        #self.wait()
-        #self.device.dragDip((205.71, 801.14), (204.57, 785.14), 6000, 20, 0)
-        #self.wait()
-        #self.vc.findViewWithContentDescriptionOrRaise(u'''Von Start entfernen''').touch()
-        #self.wait()
+        # self.wait()
+        # self.go_back(1)
+        # self.device.dragDip((60.57, 757.71), (77.71, 744.0), 6000, 20, 0)
+        # self.wait()
+        # self.device.touch(212.0, 964.0, 0)
+        # self.wait()
+        # self.device.dragDip((74.29, 774.86), (84.57, 756.57), 6000, 20, 0)
+        # self.wait()
+        # self.device.touchDip(121.14, 620.57, 0)
+        # self.wait()
+        # self.device.dragDip((205.71, 801.14), (204.57, 785.14), 6000, 20, 0)
+        # self.wait()
+        # self.vc.findViewWithContentDescriptionOrRaise(u'''Von Start entfernen''').touch()
+        # self.wait()
         self.device.dragDip((60.57, 632.0), (60.57, 610.29), 6000, 20, 0)
         self.wait()
         self.vc.findViewWithContentDescriptionOrRaise(u'''Elemente auswählen''').touch()
@@ -370,7 +455,6 @@ class Device(threading.Thread, BaseDevice):
         self.wait()
         self.vc.findViewWithContentDescriptionOrRaise(u'''Maps''').longTouch()
         self.wait()
-
 
     def go_to_home_screen(self):
         self.device.shell('input keyevent KEYCODE_HOME')
@@ -453,16 +537,17 @@ class Device(threading.Thread, BaseDevice):
         self.vc.findViewByIdOrRaise(searchtext).type(texttotype)
         self.wait()
 
-    def touch_by_text(self, searchtext, androidviewclientvariant=False):
+    def touch_by_text(self, searchtext, androidviewclientvariant=False, wait=True):
         if not androidviewclientvariant:
             viewid = self.check_if_screen_contains(searchtext)
             if viewid is not None:
                 self.vc.findViewByIdOrRaise(viewid).touch()
         else:
             self.vc.findViewWithTextOrRaise(searchtext).touch()
-        self.wait()
+        if wait:
+            self.wait()
 
-    def type_by_text(self, texttotype, searchtext, androidviewclient=False):
+    def type_by_text(self, texttotype, searchtext, androidviewclient=False, wait=True):
         if not androidviewclient:
             viewid = self.check_if_screen_contains(searchtext)
             if viewid is not None:
@@ -470,7 +555,8 @@ class Device(threading.Thread, BaseDevice):
                 self.vc.findViewByIdOrRaise(viewid).type(texttotype)
         else:
             self.vc.findViewWithTextOrRaise(searchtext).type(texttotype)
-        self.wait()
+        if wait:
+            self.wait()
 
     def get_viewid_to_open_in_settings(self, setting):
         result = None
@@ -542,18 +628,55 @@ class Device(threading.Thread, BaseDevice):
         self.device.shell(
             'ps | grep -v root | grep -v system | grep -v "android.process." | grep -v radio | grep -v "com.google.process." | grep -v "com.lge." | grep -v shell | grep -v NAME | awk "{print $NF}" | tr "\r" " " | xargs kill')
 
+    # this function needs around 20-30 sec
+    def wifi_login_new(self):
+        result = False
+        timebeforetask = datetime.now()
+        try:
+            self.vc.dump(window=-1)
+            self.start_wifi_settings()
+            self.wait_clever("WLAN", mode="owntext")
+            self.touch_by_text("WLAN", True, False)
+            self.wait_clever("WLAN, Aus", mode="text")
+            if not self.open_in_settings("Aus"):
+                self.destroy_current_running_app()
+                self.wait()
+                return True
+            self.wait_clever(Device.wifissid, mode="ownmixssid")
+            self.touch_by_text(Device.wifissid, True,wait=False)
+            self.wait_clever(u'Passwort eingeben', mode="text")
+            self.type_by_text(Device.wifipw, u'Passwort eingeben', True, wait=False)
+            self.wait_clever(sec=0.25)
+            self.device.press('KEYCODE_ENTER')
+            self.wait_clever(sec=0.15)
+            result = True
+        except:
+            result = False
+        timeaftertask = datetime.now()
+        if result:
+            timediff = timeaftertask - timebeforetask
+            print "DEBUGMARKUS - TIME DIFFERENCE || WIFI_LOGIN_NEW || needed time: "+str(timediff)
+        self.destroy_current_running_app()
+        return result
+
     # Enables wifi with given data from model
+    # !!!this function needs around 50-60 sec!!!
     def wifi_login(self):
         result = False
+        timebeforetask = datetime.now()
         try:
             self.wait(1)
             self.start_wifi_settings()
             self.wait(1)
             self.touch_by_text("WLAN", True)
             if self.find_by_text(u'Ein'):
+                self.destroy_current_running_app()
+                self.wait()
                 return True
 
             if not self.open_in_settings("Aus"):
+                self.destroy_current_running_app()
+                self.wait()
                 return True
             self.wait(3)
 
@@ -567,12 +690,13 @@ class Device(threading.Thread, BaseDevice):
                 except:
                     print ("error in view")
 
-            self.wait(1)
+            self.wait()
             if viewid is not None:
                 self.touch_by_id(viewid)
             if self.find_by_text(u'Entfernen'):
                 result = True
             self.type_by_text(Device.wifipw, u'Passwort eingeben', True)
+            self.wait()
             self.device.press('KEYCODE_ENTER')
             self.wait(1)
             result = True
@@ -580,7 +704,11 @@ class Device(threading.Thread, BaseDevice):
             print sys.exc_info()
             print str(self.currentdevice)
             result = False
-
+        timeaftertask = datetime.now()
+        if result:
+            timediff = timeaftertask - timebeforetask
+            print "DEBUGMARKUS - TIME DIFFERENCE || WIFI_LOGIN || needed time: "+str(timediff)
+        self.wait(1)
         self.destroy_current_running_app()
         return result
 
@@ -595,7 +723,7 @@ class Device(threading.Thread, BaseDevice):
             self.wait()
             self.vc.findViewWithTextOrRaise(u'Für mich selbst').touch()
             #            self.touch_by_text(u'''Konto erstellen''', True)
-            #self.touch_by_text(u'''Für mich selbst''', True)
+            # self.touch_by_text(u'''Für mich selbst''', True)
             self.wait()
             self.type_by_id(self.googlefname, "firstName")  # +str(000)+str(self.currentdevice)
             self.device.press('KEYCODE_ENTER')
@@ -663,13 +791,13 @@ class Device(threading.Thread, BaseDevice):
             if self.vc.findViewWithText(u'So melden Sie sich an') is not None:
                 self.enter_text_adb(self.email)
             self.wait()
-            self.email = "tax" + str(self.googlelname) + str(self.currentdevice)+"@gmail.com"
+            self.email = "tax" + str(self.googlelname) + str(self.currentdevice) + "@gmail.com"
             self.wait(1)
             self.device.press('KEYCODE_ENTER')
 
             # press password
-            self.password = "tax"+str(self.googlelname)+"000!"
-            #self.password = self.pw_generator()
+            self.password = "tax" + str(self.googlelname) + "000!"
+            # self.password = self.pw_generator()
             print "Generated Password: " + self.password
             self.enter_text_adb(self.password)
             self.wait(1)
@@ -702,7 +830,7 @@ class Device(threading.Thread, BaseDevice):
             self.wait(3)
             if self.vc.findViewWithText(u'Einen Moment noch…') is not None:
                 self.vc.findViewWithTextOrRaise(u'Bestätigen').touch()
-            #if self.find_by_text(u'Einen Moment noch…'):
+            # if self.find_by_text(u'Einen Moment noch…'):
             #    self.touch_by_text(u'Bestätigen', True)
             self.wait(1)
             result = True
@@ -857,7 +985,7 @@ class Device(threading.Thread, BaseDevice):
     def increase_standard_volume_keycode(self, times=1):
         for i in range(times):
             self.device.press('KEYCODE_VOLUME_UP')
-            #self.wait()
+            # self.wait()
 
     def get_current_packagename(self):
         try:
@@ -952,8 +1080,8 @@ class Device(threading.Thread, BaseDevice):
                     self.device.touchDip(166.86, 797.71, 0)
                     self.wait()
                     self.device.touchDip(222.86, 776.0, 0)
-                    #self.touch_by_text(u'WEITER')
-                    #self.touch_by_text(u'ÜBERSPRINGEN', True)
+                    # self.touch_by_text(u'WEITER')
+                    # self.touch_by_text(u'ÜBERSPRINGEN', True)
                 except:
                     self.device.touchDip(166.86, 797.71, 0)
                     self.wait()
@@ -980,19 +1108,24 @@ class Device(threading.Thread, BaseDevice):
 
     def reboot_device(self):
         self.device.shell('reboot')
+        return True
 
     def disable_dev_options(self):
-        self.start_settings()
-        self.wait(1)
-        self.swipe_up()
-        self.wait()
-        self.swipe_up()
-        self.wait()
-        self.vc.findViewWithTextOrRaise(u'Entwickleroptionen', root=self.vc.findViewByIdOrRaise('id/no_id/30')).touch()
-        self.wait()
-        self.vc.findViewWithTextOrRaise(u'Entwickleroptionen, Ein').touch()
-
-
+        result = False
+        try:
+            self.start_settings()
+            self.wait(1)
+            self.swipe_up()
+            self.wait()
+            self.swipe_up()
+            self.wait()
+            self.vc.findViewWithTextOrRaise(u'Entwickleroptionen', root=self.vc.findViewByIdOrRaise('id/no_id/30')).touch()
+            self.wait()
+            self.vc.findViewWithTextOrRaise(u'Entwickleroptionen, Ein').touch()
+            result = True
+        except:
+            return False
+        return result
 
     # not used any more?!
     def search_app_in_appstore(self, appname):

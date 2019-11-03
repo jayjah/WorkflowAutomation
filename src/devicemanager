@@ -1,17 +1,227 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import time
 
+import PIL
+
+import time
+import psutil
 from subprocess import check_output
 import subprocess
-from src.device import Device
+from tkintertable.Tables import TableCanvas, Frame, BOTH, TOP
+from tkintertable.TableModels import TableModel
+from PIL import ImageTk
+from tkinter import ttk, Listbox, RIGHT, Y, LEFT, END, PhotoImage, X, Text, Tk, Button, CENTER, Label, Scrollbar, \
+    Toplevel
 
-# Handles all devices, give orders to devices for given config
-# Master Class
+from src.device import Device
 from src.helper import debug_print, debug_error_print, print_and_exit_script, AccountSettings, Model
 
 
+# Handles all devices, give orders to devices for given config
+# Master Class
 class DevicePoolManager(object):
+
+    # GUI stuff after here
+    def start_gui_mode(self):
+        if self.taxibtn is not None:
+            self.taxibtn.destroy()
+            self.taxibtn = None
+        if self.configtext is not None:
+            self.configtext.destroy()
+            self.configtext = None
+        self.configbtn.configure(text="Configuration lesen", command=self.show_config, fg="green", width=15)
+        self.configbtn.update()
+        self.startbtn.pack_forget()
+
+        # update menu buttons
+        self.configbtn.configure(font="Verdana 13")
+        self.configbtn.pack(side="left")
+        self.closebtn.configure(font="Verdana 13")
+        self.closebtn.pack(side="right")
+
+        self.initdevicesbtn.configure(text="Geräte initialisieren", command=self.init_phones_gui, width=20)
+        self.initdevicesbtn.pack(side="top")
+        self.initdevicesbtn.update()
+
+        self.currentdevicecounterbtn.configure(text="Verbundene Geräte:", command=self.update_device_counter)
+        self.currentdevicecounterbtn.pack(side="left")
+        self.currentdevicecounterbtn.update()
+
+
+        return
+
+    def update_device_counter(self):
+        self.currentdevicecounterlabel.configure(text="Anzahl: "+str(len(self.adb_devices())))
+        self.currentdevicecounterlabel.pack(side="right")
+        self.currentdevicecounterlabel.update()
+
+    def init_phones_gui(self):
+        self.currentstatement.configure(text="Bitte warten, die Geräte werden initialisiert ...")
+        self.currentstatement.pack()
+        self.currentstatement.update()
+        self.configbtn.destroy()
+        self.configbtn.update()
+        self.initdevicesbtn.configure(text="Geräte Einrichten", command=self.run)
+        self.initdevicesbtn.pack(side="top")
+        self.initdevicesbtn.update()
+
+        if self.init_phones():
+            # wtext.destroy()
+            if self.check_if_all_devices_are_initialized():
+                self.currentstatement.configure(
+                    text="Alle Geräte wurden initialisiert.")
+                self.currentstatement.update()
+
+                taskstatusstr = 'Task Status'
+                devicetaskstr = 'Device Task'
+                devicestatusstr = 'Device Status'
+                deviceidstr = 'Device Kennung'
+
+                data = {'0': {deviceidstr: 'rec1', taskstatusstr: 0, devicetaskstr: 99.88, devicestatusstr: 108.79},
+                        '1': {taskstatusstr: 0, devicetaskstr: 99.88, devicestatusstr: 108.79, deviceidstr: 'rec2'}
+                        }
+                self.table.model.importDict(data)
+                self.table.show()
+
+                self.table.setFontSize()
+                self.table.setcellColor(rows=1, cols=[0], newColor='#ffff00', key='bg', redraw=True)
+                self.table.redraw()
+
+                return
+
+        else:
+
+            self.currentstatement.configure(text="")
+            self.currentstatement.pack()
+            self.currentstatement.update()
+
+            label1 = Label(self.errorframe, text="Es konnten nicht alle Handys initialisiert werden. Es "
+                                                          "wird abgebrochen.", font="Verdana 15 bold")
+            label1.pack(side="top", fill=X, padx=50, pady=50)
+            label1.update()
+            label2 = Label(self.errorframe, compound=CENTER, text="Von " + str(self.model.countercars) + " waren " + str(
+                              self.alldevscounter) + " verbunden.", font="Verdana 13 bold")
+            label2.pack(side="top", fill=X, padx=15, pady=15)
+            label2.update()
+            closebtn = Button(self.errorframe, text="Beenden", command=self.close_app, fg="red", width=15,
+                             font="Verdana 15 bold")
+            closebtn.pack(side="bottom", padx=25, pady=25)
+            closebtn.update()
+            img2 = ImageTk.PhotoImage(PIL.Image.open("../res/error_icon.png"))
+            self.taxibtn = Label(self.errorframe, image=img2)
+            self.taxibtn.image = img2
+            self.taxibtn.pack(side="top", fill=X, padx=5, pady=5)
+            self.taxibtn.update()
+
+            # destroy stuff
+            self.closebtn.destroy()
+            self.closebtn.update()
+            self.startbtn.destroy()
+            self.startbtn.update()
+            self.configbtn.destroy()
+            self.configbtn.update()
+            self.initdevicesbtn.destroy()
+            self.initdevicesbtn.update()
+            return
+
+    def init_phones(self):
+        # start threads&& adb shell sendevent /devices if enough connected phones exist
+        result = False
+        self.devices = {}
+        if self.check_phones_connected():
+            self.currdevicenumber = int(self.model.currentfirstcar)
+            for i in range(int(self.model.countercars)):
+                phonenumber = None
+                if str(self.model.phonenumbersgiven) == str(True):
+                    phonenumber = int(str(self.model.phonenumbers).split(',')[i])
+                else:
+                    phonenumber = int(str(self.model.phonenumbers).split(',')[0])
+
+                pin = None
+                if str(self.model.disablesimlock) == str(True):
+                    pin = int(str(self.model.simpins).split(',')[i])
+                thread = Device(self.currdevicenumber, self.alldevs[i], phonenumber, pin)
+                self.devices.update({i: thread})
+                self.currdevicenumber = self.currdevicenumber + 1
+
+                # after last device was started, go in watch mode
+                if str(i + 1) == str(self.model.countercars):
+                    result = True
+                    time.sleep(1)
+                    debug_print(
+                        "DeviceManager : Last device started, set Flags to Devices")
+
+        else:
+            debug_print("should init phones: " + str(self.model.countercars))
+            debug_print("connected phones: " + str(self.alldevscounter))
+            debug_error_print("Something wrong here!", "Connect more phones or maybe put another value in "
+                                                       "config settings")
+        return result
+
+    def save_config(self):
+        configcontent = self.configtext.get(1.0, END)
+        f = open("./../config.cfg", "w")
+        f.flush()
+        f.writelines(configcontent)
+        f.close()
+
+        #overwrite own model data
+        newmodel = Model()
+        self.model = newmodel
+
+        self.configbtn.configure(text="Configuration gespeichert", command=None, width=20)
+        self.configbtn.update()
+        time.sleep(2)
+        self.configbtn.configure(text="Configuration lesen", command=self.show_config, width=15)
+        self.configlabel.destroy()
+        self.configlabel.update()
+        self.configbtn.update()
+        self.configtext.destroy()
+        return
+
+    def show_config(self):
+        if self.taxibtn is not None:
+            self.taxibtn.destroy()
+            self.taxibtn = None
+        self.configbtn.configure(text="Configuration speichern /ausblenden", command=self.save_config, width=35)
+        self.configbtn.update()
+        self.currentdevicecounterbtn.configure(text="Verbundene Geräte:", command=self.update_device_counter)
+        self.currentdevicecounterbtn.pack(side="left")
+        self.currentdevicecounterbtn.update()
+        f = open("./../config.cfg")
+
+        filecontent = ""
+        for i in f:
+            filecontent += i
+        img = ImageTk.PhotoImage(PIL.Image.open("../res/info_icon.png"))
+        self.configlabel = Label(self.configframe, image=img, compound="left", justify=LEFT, font="Verdana 12", text="In der Config ist die Configuration für die Einstellungen der Handys vorhanden. \n Diese kann hier im Editor bearbeitet werden und anschließend gespeichert werden. Die Einstellungen werden direkt übernommen. \n Die meisten Einstellungen können mit 'True' oder 'False' gekennzeichnet werden. Falls nicht, \n dann ist dies in der jeweiligen Section näher erläutert.")
+        self.configlabel.image = img
+        self.configlabel.pack()
+        self.configlabel.update()
+        self.configtext = Text(self.configframe, font="Verdana 13")
+        self.configtext.pack(fill=X)
+        self.configtext.insert(END, filecontent)
+        f.close()
+        return
+
+    def show_menu(self):
+        # self.header.destroy()
+        self.headerframe.destroy()
+        self.startbtn.pack(padx=5, pady=20)
+        self.configbtn.pack(padx=5, pady=20)
+        self.closebtn.pack(padx=5, pady=20)
+
+    def close_app(self):
+        # stop threads if their state is not finalized
+        try:
+            for thread in self.devices.values():
+                thread.join()
+        except:
+            print "could not stop threads"
+        if self.taxibtn is not None:
+            self.taxibtn.destroy()
+            self.taxibtn = None
+        print_and_exit_script()
 
     def __init__(self, model):
         self.initialized = False
@@ -36,43 +246,110 @@ class DevicePoolManager(object):
                 self.alldevs.append(device)
                 self.alldevscounter += 1
 
-        # start threads&& adb shell sendevent /devices if enough connected phones exist
-        self.devices = {}
-        if self.check_phones_connected():
-            self.currdevicenumber = int(self.model.currentfirstcar)
-            for i in range(int(self.model.countercars)):
+        # start gui mode if enabled else just start config mode
+        if self.model.gui:
+            print("Start Gui here")
+            # If threads needs I/O then they'll be stored by reference in here
+            self.iothreadqueue = dict()
 
-                phonenumber = None
-                if str(self.model.phonenumbersgiven) == str(True):
-                    phonenumber = int(str(self.model.phonenumbers).split(',')[i])
-                else:
-                    phonenumber = int(str(self.model.phonenumbers).split(',')[0])
+            self.gui = Tk()
+            self.gui.title("Workflow Automation v.001+")
+            self.master = self.gui
+            self.headerframe = Frame(self.gui)
+            self.header = Label(self.headerframe, compound=CENTER,
+                                text="Workflow Automation v.001+ GUI Version \n Currently in testmode",
+                                font="Verdana 12 bold")
+            self.header.pack(side=LEFT, fill=X)
+            self.header2 = Label(self.headerframe, compound=CENTER, text=" developed by Jayjah - Markus Krebs ")
+            self.header2.pack(side=RIGHT, fill=Y)
+            self.headerframe.pack()
 
-                pin = None
-                if str(self.model.disablesimlock) == str(True):
-                    pin = int(str(self.model.simpins).split(',')[i])
-                thread = Device(self.currdevicenumber, self.alldevs[i], phonenumber, pin)
-                self.devices.update({i: thread})
-                self.currdevicenumber = self.currdevicenumber+1
+            # frame: error
+            self.errorframe = Frame(self.gui)
+            self.errorframe.pack(fill=BOTH)
 
-                # after last device was started, go in watch mode
-                if str(i + 1) == str(self.model.countercars):
-                    time.sleep(1)
-                    debug_print(
-                        "DeviceManager : Last device started, set Flags to Devices")
-                    self.run()
+            screen_width = self.gui.winfo_screenwidth()
+            screen_height = self.gui.winfo_screenheight()
+            self.gui.geometry(str(screen_width) + "x" + str(screen_height))
+
+            imgtaxi = ImageTk.PhotoImage(PIL.Image.open("../res/taxide.png"))
+            self.taxibtn = Button(self.gui, compound=RIGHT, image=imgtaxi, command=self.show_menu,
+                                  font="Verdana 15 bold")
+            self.taxibtn.pack(padx=10, pady=10)
+            self.configtext = None
+
+            # frame: menu
+            self.menuframe = Frame(self.gui)
+            self.startbtn = Button(self.menuframe, text="Workflow starten", command=self.start_gui_mode, fg="green", width=15,
+                                   font="Verdana 15 bold")
+
+            self.configbtn = Button(self.menuframe, text="Configuration lesen", command=self.show_config, fg="green",
+                                    width=15,
+                                    font="Verdana 15 bold")
+
+            self.closebtn = Button(self.menuframe, text="Workflow beenden", command=self.close_app, fg="red", width=15,
+                                   font="Verdana 15")
+            self.menuframe.pack()
+
+            # frame: more buttons and labels
+            self.currentdevicecounterframe = Frame(self.gui)
+            self.initdevicesbtn = Button(self.currentdevicecounterframe, width=30,
+                                   font="Arial 12 bold", fg="green", padx=15, pady=10)
+            self.currentdevicecounterbtn = Button(self.currentdevicecounterframe, width=20, justify=CENTER,
+                                   font="Arial 12")
+            self.currentdevicecounterlabel = Label(self.currentdevicecounterframe, width=10, justify=CENTER,
+                                   font="Arial 12")
+            self.currentdevicecounterframe.pack()
+
+            #table stuff here
+            self.frame = Frame(self.gui)
+            self.frame.pack(fill=BOTH, expand=1)
+            self.table = TableCanvas(self.frame, data={}, read_only=True, cellwidth=250.0, rowheight=75)
+            self.tabledatamodel = self.table.model
+
+            # frame: current statement tells something about the current work of= devicepoolmanager
+            self.statementframe = Frame(self.gui)
+            self.currentstatement = Label(self.statementframe, font="Arial 13", width=screen_width)
+            self.statementframe.pack()
+
+            # frame: config
+            self.configframe = Frame(self.gui)
+            self.configframe.pack(fill=X)
+
+            # runs the gui code
+            self.gui.mainloop()
+
         else:
-            debug_print("should init phones: " + str(self.model.countercars))
-            debug_print("connected phones: " + str(self.alldevscounter))
-            debug_error_print("Something wrong here!", "Connect more phones or maybe put another value in "
-                                                       "config settings")
-            print_and_exit_script()
+            # just init phones and the set config flags to device classes, afterwards start threads, log in console
+            # TODO start log bash script
+            self.init_phones()
+            if self.check_if_all_devices_are_initialized():
+                self.run()
+            else:
+                self.close_app()
+
+
+    def ok(self):
+        print("DEBUGMARKUS - OK CLICKED")
+
 
     # Runner Method from master
     # Sets Class Flags in Device class to let the device threads do their job
     # Script - Flow
     def run(self):
         """"""
+        # update ui if necessary
+        if self.model.gui:
+            self.currentstatement.configure(text="Die Konfigurationen werden an die Geräte übermittelt.")
+            self.currentstatement.update()
+            self.initdevicesbtn.configure(text="Geräte Einrichten", command=None, fg="black", font="Arial 12 bold")
+            self.initdevicesbtn.pack(side="top")
+            self.initdevicesbtn.update()
+            self.configbtn.pack_forget()
+            self.configbtn.update()
+            self.closebtn.pack_forget()
+            self.closebtn.update()
+
         # waits till all devices are initialized
         while not self.alldevicesinitiliazed:
             # wait 5 sec
@@ -85,70 +362,42 @@ class DevicePoolManager(object):
 
         debug_print("DeviceManager : Set Config Flags")
 
-        if str(self.model.configuresettings) == str(True) and str(self.model.configuresoundsettings) == str(True):
-            debug_print("DeviceManager - Flag : Configure Sound Settings")
-            Device.lock.acquire()
-            Device.configuresoundsettings = True
-            Device.lock.release()
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.configurelocationsettings) == str(True):
-            debug_print("DeviceManager - Flag : Configure Location Settings")
-            Device.lock.acquire()
-            Device.configurelocationsettings = True
-            Device.lock.release()
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.disablesimlock) == str(True):
-            debug_print("DeviceManager - Flag : Disable Sim Lock")
-            Device.lock.acquire()
-            Device.disablesimlock = True
-            Device.lock.release()
-
-        if str(self.model.loginwifi) == str(True):
-            debug_print("DeviceManager - Flag : Enable WiFi")
-            self.enable_wifi_mode()
-
-        if str(self.model.creategoogleaccount) == str(True):
-            debug_print("DeviceManager - Flag : Creating Google Account")
-            self.enable_google_account()
-
-        if len(self.model.installappsps) > 0 and str(self.model.installapps) == str(True):
-            debug_print("DeviceManager - Flag : Install apps from Play Store")
-            self.install_apps_from_playstore()
-
-        if str(self.model.pairdriverapp) == str(True):
-            debug_print("DeviceManager - Flag : Pair Driver App")
-            Device.lock.acquire()
-
-            Device.pairdriverapp = True
-            for i in range(int(self.model.countercars)):
-                self.devices.get(i).pairdriverappname = str(self.model.drivername).split(',')[i]
-                self.devices.get(i).pairdriverapppw = str(self.model.driverpw).split(',')[i]
-                #thread.start()
-            #Device.pairdriverappname = self.model.drivername
-            #Device.pairdriverapppw = self.model.driverpw
-            Device.lock.release()
-
-        if str(self.model.configuresettings) == str(True) and str(self.model.configurepowersavingmode) == str(True):
-            debug_print("DeviceManager - Set Flag : Disable Power Saving Mode For Driver App")
-            Device.lock.acquire()
-            Device.configurepowersavingmode = True
-            Device.lock.release()
+        self.set_config_flags_to_devices()
 
         debug_print("DeviceManager : Start Threads to do their job")
         self.start_threads()
 
+        self.currentstatement.configure(text="Die Geräte starten ihre Arbeit.")
+        self.currentstatement.update()
+
         # wait till all devices are done with their work
         while not self.alldevicesdone:
+            time.sleep(20)
             if self.check_if_all_devices_are_initialized():
                 self.check_if_all_devices_are_done()
                 debug_print("DeviceManager : ⌛️ All devices are doing their job. But Not all all of them are done")
 
+                # ui stuff
+                if self.model.gui:
+                    resultsids = dict()
+
                 # store all results
                 for i in range(int(self.model.countercars)):
-                    self.resultswifi[self.devices.get(i).currentdevice] = self.devices.get(i).wifienabled
-
                     googleaccsettings = AccountSettings(self.devices.get(i).createdgoogleaccount,
                                                         self.devices.get(i).email, self.devices.get(i).password)
+
+                    resultsids[i] = str(self.devices.get(i).currentdevice) + "||" + str(
+                        self.devices.get(i).serialno) +"!"+"Wifi:"+str(self.devices.get(i).wifienabled)+"!"+"GoogleAccount:"+"Success: " + str(
+                        googleaccsettings.success) + " Email: " + str(googleaccsettings.email) + " Password: " + str(
+                        googleaccsettings.emailpassword)+"!"+"PlayStore:"+str(self.devices.get(i).installedapps)+"!"+"PairDriverApp:"+"Success: " + str(
+                        self.devices.get(i).ispaired) + " Username: " + str(
+                        self.devices.get(i).pairdriverappname) + " Passwort: " + str(
+                        self.devices.get(i).pairdriverapppw)+"!"+"Settings:"+"Sound: " + str(
+                        self.devices.get(i).soundconfigconfigured) + " SimLock: " + str(
+                        self.devices.get(i).disabledpin) + " Location: " + str(self.devices.get(i).locationconfigured)
+
+                    self.resultswifi[self.devices.get(i).currentdevice] = self.devices.get(i).wifienabled
+
                     self.resultsgoogleacc[str(self.devices.get(i).currentdevice) + "||" + str(
                         self.devices.get(i).serialno)] = "Success: " + str(
                         googleaccsettings.success) + " Email: " + str(googleaccsettings.email) + " Password: " + str(
@@ -158,7 +407,10 @@ class DevicePoolManager(object):
                         self.devices.get(i).serialno)] = self.devices.get(i).installedapps
 
                     self.resultspaireddriverapp[str(self.devices.get(i).currentdevice) + "||" + str(
-                        self.devices.get(i).serialno)] = "Success: "+str(self.devices.get(i).ispaired)+ " Username: "+str(self.devices.get(i).pairdriverappname)+" Passwort: "+str(self.devices.get(i).pairdriverapppw)
+                        self.devices.get(i).serialno)] = "Success: " + str(
+                        self.devices.get(i).ispaired) + " Username: " + str(
+                        self.devices.get(i).pairdriverappname) + " Passwort: " + str(
+                        self.devices.get(i).pairdriverapppw)
 
                     self.resultssettings[str(self.devices.get(i).currentdevice) + "||" + str(
                         self.devices.get(i).serialno)] = "Sound: " + str(
@@ -177,20 +429,43 @@ class DevicePoolManager(object):
                 debug_print("RESUUULT PAIRED DRIVER APP")
                 debug_print(self.resultspaireddriverapp)
 
+                # update ui if necessary
+                if self.model.gui and len(resultsids.keys())>0:
+                    for device in resultsids.iteritems():
+                        #columns = deviceids.split("!")
+                        print ("DEBUGMARKUS - COLUMN OF RESULTIDS: "+str(device))
+
+                # check if any thread needs I/O
+                print "DEBUGMARKUS - check for i/o threads events"
+                i = 0
+                for device in self.devices.values():
+                    if device.waitforio:
+                        self.iothreadqueue[i] = device
+                        top = Toplevel(self.gui)
+                        img = ImageTk.PhotoImage(PIL.Image.open("../res/info_icon.png"))
+                        l = Label(top, compound="top", image=img, text="Device: "+str(device.currentdevice)+" || "+str(device.serialno) + "\n" + " Benötigt Usereingabe: "+device.ioreason)
+                        l.image = img
+                        l.pack(expand=1, side="top", pady=10, padx=10)
+                        l.update()
+                        b = Button(top, text="ERLEDIGT", command=self.ok)
+                        b.pack(expand=1, pady=10, padx=10)
+                        self.gui.wait_window(top)
+                        i = i+1
+
                 # wait 10 sec
-                time.sleep(10)
+                time.sleep(3)
 
         # all devices are done
         debug_print("DeviceManager : ✅ All devices are done")
 
-        # stop threads if their state is not finalized
-        for thread in self.devices.values():
-            if not bool(thread.isdone):
-                thread.join()
+
 
         # Close automator
         debug_print("DeviceManager : Close Session")
-        print_and_exit_script()
+
+        #TODO stop executing must be put anywhere else, cause here should be a return value
+        self.close_app()
+        #print_and_exit_script()
 
     def start_threads(self):
         for i in range(int(self.model.countercars)):
@@ -271,17 +546,116 @@ class DevicePoolManager(object):
             self.devices.get(i).googlebirthyear = int(self.model.birthyear)
         Device.lock.release()
 
+    def set_config_flags_to_devices(self):
+        if str(self.model.configurescreenbrightness) == str(True) and str(self.model.configurescreenbrightness):
+            debug_print("DeviceManager - Flag : Configure Screen Brightness Settings")
+            Device.lock.acquire()
+            Device.BRIGHTNESS_HIGH = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.configuresoundsettings) == str(True):
+            debug_print("DeviceManager - Flag : Configure Sound Settings")
+            Device.lock.acquire()
+            Device.configuresoundsettings = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.configurelocationsettings) == str(True):
+            debug_print("DeviceManager - Flag : Configure Location Settings")
+            Device.lock.acquire()
+            Device.configurelocationsettings = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.disablesimlock) == str(True):
+            debug_print("DeviceManager - Flag : Disable Sim Lock")
+            Device.lock.acquire()
+            Device.disablesimlock = True
+            Device.lock.release()
+
+        if str(self.model.loginwifi) == str(True):
+            debug_print("DeviceManager - Flag : Enable WiFi")
+            self.enable_wifi_mode()
+
+        if str(self.model.creategoogleaccount) == str(True):
+            debug_print("DeviceManager - Flag : Creating Google Account")
+            self.enable_google_account()
+
+        if len(self.model.installappsps) > 0 and str(self.model.installapps) == str(True):
+            debug_print("DeviceManager - Flag : Install apps from Play Store")
+            self.install_apps_from_playstore()
+
+        if str(self.model.pairdriverapp) == str(True):
+            debug_print("DeviceManager - Flag : Pair Driver App")
+            Device.lock.acquire()
+            Device.pairdriverapp = True
+            for i in range(int(self.model.countercars)):
+                self.devices.get(i).pairdriverappname = str(self.model.drivername).split(',')[i]
+                self.devices.get(i).pairdriverapppw = str(self.model.driverpw).split(',')[i]
+                # thread.start()
+            # Device.pairdriverappname = self.model.drivername
+            # Device.pairdriverapppw = self.model.driverpw
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.configurepowersavingmode) == str(True):
+            debug_print("DeviceManager - Set Flag : Disable Power Saving Mode For Driver App")
+            Device.lock.acquire()
+            Device.configurepowersavingmode = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.configurehomescreen):
+            debug_print("DeviceManager - Flag : Configure Homescreen")
+            Device.lock.acquire()
+            Device.configurehomescreen = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.disabledevoptions):
+            debug_print("DeviceManager - Flag : Disable Dev Options")
+            Device.lock.acquire()
+            Device.disabledevoptions = True
+            Device.lock.release()
+
+        if str(self.model.configuresettings) == str(True) and str(self.model.rebootdevicewhenfinished):
+            debug_print("DeviceManager - Flag : Reboot Device after success")
+            Device.lock.acquire()
+            Device.rebootdevicewhenfinished = True
+            Device.lock.release()
+        return
+
 
 class Controller(object):
 
     def __init__(self):
-        cmd = ['gnome-terminal', '-x', 'bash', '-c']
-       # name_of_log_file = "./../res/log-bash.sh"
-        your_proc = subprocess.Popen(cmd)# + [(name_of_log_file)])
-
         self.model = Model()
         debug_print("init Controller")
         self.dm = DevicePoolManager(self.model)
 
+
+'''
+One way to handle seperate bash windows: start new bash processes and get output about pid, old and ugly way, cause it
+depends on the operation system; 
+This version works only on linux and probably macos (NOT TESTED!)
+
+    cmd = ['gnome-terminal', '--', 'python', '/home/markus/PycharmProjects/WorkflowAutomation/res/waitforlock.py', 'dasd'] #["python /home/markus/PycharmProjects/WorkflowAutomation/res/waitforlock.py -2222"]
+           # name_of_log_file = "./../res/log-bash.sh"
+    output = None
+    name_of_wait_script = "/home/markus/PycharmProjects/WorkflowAutomation/res/waitforlock.py -1 -123455"
+    your_proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE) #subprocess.Popen("read 'Press any key to continue'" ,shell=True, stdout=subprocess.PIPE)#cmd +['python /home/markus/PycharmProjects/WorkflowAutomation/res/waitforlock.py'], stdout=output)# + [(name_of_log_file)])
+    
+    # TODO after started terminal/terminals, get pid of gnome-terminal-server [server holds all terminal windows] followed by pstree -pa gnome-terminal-server-pid get all terminal windows with pid, filter for correct ones by python parameters, who was given to python script
+    while True:
+        time.sleep(10)
+    
+        for proc in psutil.process_iter():
+            if proc.name() == "gnome-terminal-server":
+                print "Found terminal server, PID: "+str(proc.pid)
+              #  print("Children of terminal server: "+str(proc.))
+            #print(proc)
+    
+        process = psutil.Process(your_proc.pid)
+        print " is process still running? " +str(process.name())
+
+
+Preferred way to solve the waiting procedure: GUI
+
+'''
 
 controller = Controller()
