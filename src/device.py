@@ -32,7 +32,9 @@ class Device(threading.Thread, BaseDevice):
     waiter = Waiter()
 
     # MAXIMUM times to let threads run through run method
-    MAX_RUN = 3
+    MAX_RUN = 1
+    # MAXIMUM times to wait and afterwards crawl current UI for specific string
+    MAX_WAIT_CLEVER_ROUNDS = 10
 
     # Flags to let the threads run independently on their own and do work
     # Flags will be set from DeviceManager
@@ -52,6 +54,8 @@ class Device(threading.Thread, BaseDevice):
     BRIGHTNESS_HIGH = False
     disabledevoptions = False
     rebootdevicewhenfinished = False
+    enablelockdevice = False
+    devicelockpattern = -1
 
     def __init__(self, number, serialno, telephonenummber=None, pin=None):
         threading.Thread.__init__(self)
@@ -104,6 +108,7 @@ class Device(threading.Thread, BaseDevice):
         self.rebooteddevice = False
         self.waitforio = False
         self.ioreason = ""
+        self.devicelockconfigured = False
 
         # how many times got this thread through run method, till it's possible to say that this one is done
         self.runnercounter = 0
@@ -114,6 +119,9 @@ class Device(threading.Thread, BaseDevice):
         self.serialnoavc = None
         self.telephonenumber = telephonenummber
         debug_print("DEVICE SERIAL NUMBER: " + str(serialno) + " intern Device Number: " + str(number))
+
+        # current task
+        self.currenttask = None
 
         # action which could cause a deadlock or unsafe thread operation
         # not sure how viewclient react in python on multithreading that's why I put it in here
@@ -146,8 +154,10 @@ class Device(threading.Thread, BaseDevice):
     def run(self):
         while not self.isdone:
             self.wait(1.0)
+
             # disable sim lock
             if self.initialized and Device.disablesimlock and not self.disabledpin:
+                self.currenttask = "Starting Task: Disable Sim Lock"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Disable Sim Lock")
                 self.disabledpin = self.disable_sim_lock()
@@ -156,6 +166,7 @@ class Device(threading.Thread, BaseDevice):
 
             # configure sound settings
             if self.initialized and Device.configuresoundsettings and not self.soundconfigconfigured:
+                self.currenttask = "Starting Task: Set Volume To Maximum"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Set Volume To Maximum")
                 self.soundconfigconfigured = self.configure_all_sound_settings()
@@ -164,6 +175,7 @@ class Device(threading.Thread, BaseDevice):
 
             # configure location settings
             if self.initialized and Device.configurelocationsettings and not self.locationconfigured:
+                self.currenttask = "Starting Task: Configure Location Settings"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Configure Location Settings")
                 self.locationconfigured = self.start_location_settings()
@@ -173,6 +185,7 @@ class Device(threading.Thread, BaseDevice):
 
             # wifi
             if self.initialized and not self.wifienabled and Device.wifissid is not None and Device.wifipw is not None:
+                self.currenttask = "Starting Task: Enable Wifi  Settings"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Enable Wifi Settings")
                 self.wifienabled = self.wifi_login_new()
@@ -181,6 +194,7 @@ class Device(threading.Thread, BaseDevice):
 
             # create google account
             if self.initialized and Device.creategoogleaccount and self.googlefname != '' and self.googlelname != '' and self.googlebirthday != 0 and self.googlebirthmonth != 0 and self.googlebirthmonth != 0 and self.email == '' and self.password == '':
+                self.currenttask = "Starting Task: Creating Google Account"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Creating Google Account")
                 self.createdgoogleaccount = self.create_google_account()
@@ -194,7 +208,8 @@ class Device(threading.Thread, BaseDevice):
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Installing Apps From Play Store")
                 while self.installedappsappstore != len(Device.installappsappstore):
-                    result = self.download_app(Device.installappsappstore[self.installedappsappstore])
+                    self.currenttask = "Starting Task: Installing From Play Store :"+str(Device.installappsappstore[self.installedappsappstore])
+                    result = self.download_app_new(Device.installappsappstore[self.installedappsappstore])
                     self.installedapps[str(Device.installappsappstore[self.installedappsappstore])] = result
                     if result:
                         print "Installed app succesfully"
@@ -206,6 +221,7 @@ class Device(threading.Thread, BaseDevice):
 
             # pair driver app
             if self.initialized and Device.pairdriverapp and not self.ispaired and self.pairdriverappname != '' and self.pairdriverapppw != '':
+                self.currenttask = "Starting Task:  Pair Driver App"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Pair Driver App")
                 self.ispaired = self.pair_driverapp()
@@ -214,6 +230,7 @@ class Device(threading.Thread, BaseDevice):
 
             # configre power saving mode for driver app
             if self.initialized and Device.configurepowersavingmode and not self.powersavingmodeconfigured:
+                self.currenttask = "Starting Task:  Disable Powser Saving Mode For Driver App"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Disable Powser Saving Mode For Driver App")
                 self.powersavingmodeconfigured = self.start_battery_optimization_settings()
@@ -222,22 +239,33 @@ class Device(threading.Thread, BaseDevice):
 
             # increase screen brightness to maximum
             if self.initialized and Device.BRIGHTNESS_HIGH and not self.increasedscreenbrightness:
+                self.currenttask = "Starting Task:  Increase Screen Brightness to MAX"
                 # self.increase_screen_brigthness(times=5)
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Increase Screen Brightness to MAX")
-                self.increasedscreenbrightness = True
+                self.increasedscreenbrightness = self.increase_screen_brigthness(times=10)
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " End Task: Increase Screen Brightness to MAX --- Result: " + str(
                     self.increasedscreenbrightness))
 
             # configure homescreen
             if self.initialized and Device.configurehomescreen and not self.homescreenconfigured:
+                self.currenttask = "Starting Task: Configure Homescreen"
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Starting Task: Configure Homescreen")
                 self.homescreenconfigured = self.configure_homescreen()
                 debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " End Task: Configure Homescreen --- Result: " + str(
                     self.increasedscreenbrightness))
+
+            # configre device lock with given pattern
+            if self.initialized and Device.enablelockdevice and not self.devicelockconfigured:
+                self.currenttask = "Starting Task: Enable Device Lock"
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " Starting Task: Enable Device Lock")
+                self.devicelockconfigured = self.enable_device_lock_screen(Device.devicelockpattern)
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " End Task: Enable Device Lock --- Result: "+str(self.devicelockconfigured))
 
             # print state of device
             debug_print("Device: " + str(self.currentdevice) + " Status: [ initialized : " + str(
@@ -247,39 +275,64 @@ class Device(threading.Thread, BaseDevice):
                 self.googlefname) + ", Google Last Name: " + str(self.googlelname) + ", Google Birthday: " + str(
                 self.googlebirthday) + " ] ] ")
 
-            self.wait(1)
-
-            self.runnercounter = self.runnercounter + 1
-            if self.runnercounter >= Device.MAX_RUN:
-                self.isdone = True
-
             if self.isdone:
                 try:
                     if self.initialized and Device.disabledevoptions:
+                        self.currenttask = "Starting Task: Disable Dev Options"
                         debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                             self.serialno) + " Task: Disable Dev Options")
                         self.disableddevoptions = self.disable_dev_options()
                     if self.initialized and Device.rebootdevicewhenfinished:
-                        debug_error_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                        debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                             self.serialno) + " Task: Reboot")
                         self.rebooteddevice = self.reboot_device()
                 except:
                     debug_error_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
                     self.serialno) + " Task: Should reboot NOW!")
+                    self.currenttask = "Device should reboot now"
+
+            if self.runnercounter >= Device.MAX_RUN and not self.waitforio:
+                debug_print(" Device Nummer: " + str(self.currentdevice) + " || Serialno: " + str(
+                    self.serialno) + " FINISHED WORK")
+                self.currenttask = "FINISHED WORK"
+                self.isdone = True
+                self.wait(1)
+
+            # increase round counter
+            self.runnercounter = self.runnercounter + 1
+            # wait 2,5 second for every round
+            self.wait(2.5)
+
+    # set IO Flag and waits till it has been reset
+    def wait_for_IO(self):
+        self.waitforio = True
+        self.wait(1)
+        while self.waitforio:
+            print "DEVICE WAITS FOR I/O"
+            self.wait(3)
+        self.wait()
+        print("DONE WAITING")
+        self.wait(1)
+        return
 
     # Goes back with android back button
     def go_back(self, times):
         for i in range(times):
-            self.wait()
+            self.wait(0.5)
             self.device.press('BACK')
 
-    def disable_device_lock_screen(self):
-        self.device.shell("locksettings clear --old 751268")
+    def disable_device_lock_screen(self, pattern):
+        self.device.shell("locksettings clear --old "+str(pattern))
         self.wait(1)
 
-    def enable_device_lock_screen(self):
-        self.device.shell("locksettings set-pattern 751268")
+    def enable_device_lock_screen(self, pattern):
+        self.device.shell("locksettings set-pattern "+str(pattern))
         self.wait(1)
+        return True
+
+    def press_power_button(self):
+        self.device.shell("input keyevent 26")
+        return
 
     # Waits
     def wait(self, sec=None):
@@ -292,21 +345,43 @@ class Device(threading.Thread, BaseDevice):
         self.vc.dump(window=-1)
 
     # Waits for given argument 'searchstring' to appear on screen
-    def wait_clever(self, searchstring=None, sec=None, mode="id", justrefresh=False):
+    def wait_clever(self, searchstring=None, sec=None, mode="id", justrefresh=False, isinstalled=False):
         # waits till screen changed
         print "Wait Clever : Start"
         roundcounter = 0
+        if sec is not None:
+            print "Wait CLever : Wait seconds"
+            found = False
+            while not found:
+                time.sleep(sec)
+                self.vc.dump(window=-1)
+        if isinstalled is not False:
+            print "Wait CLever : Till it's installed"
+            found = False
+            while not found:
+                if roundcounter>=Device.MAX_WAIT_CLEVER_ROUNDS:
+                    print "Wait Clever : Max Rounds of 20 reached, skip"
+                    return
+                self.vc.dump(window=-1, sleep=3)
+                #time.sleep(3)
+                if self._check_if_app_is_installed(isinstalled):
+                    print "Wait Clever : End"
+                    found = True
+                    return
+
+                roundcounter = roundcounter + 1
+
         if justrefresh:
             print "Wait CLever : Just Refresh"
             found = False
             while not found:
-                print "Wait Clever : Round"
-                if roundcounter>=20:
+                print "Wait Clever : Round "+str(roundcounter)
+                if roundcounter>=Device.MAX_WAIT_CLEVER_ROUNDS:
                     print "Wait Clever : Max Rounds of 20 reached, skip"
                     return
                 currentviews = self.vc.views
                 currentids = self.get_uniqueids_from_views(self.vc.views)
-                self.vc.dump(window=-1, sleep=0.05)
+                self.vc.dump(window=-1, slee=0.05)
                 time.sleep(0.05)
                 newframeviews = self.vc.views
                 newids = self.get_uniqueids_from_views(self.vc.views)
@@ -329,12 +404,12 @@ class Device(threading.Thread, BaseDevice):
             }
             found = False
             while not found:
-                print "Wait Clever : Round"
-                if roundcounter>=20:
+                print "Wait Clever : Round "+str(roundcounter)
+                if roundcounter>=Device.MAX_WAIT_CLEVER_ROUNDS:
                     print "Wait Clever : Max Rounds of 20 reached, skip"
                     return
-                self.vc.dump(window=-1, sleep=0.05)
                 time.sleep(0.05)
+                self.vc.dump(window=-1)
                 if switcher.get(mode) == -1:
                     print "Wait Clever : In Mode -1"
 
@@ -360,14 +435,18 @@ class Device(threading.Thread, BaseDevice):
                     print "Wait Clever : In Mode 2"
 
                     viewid = self.check_if_screen_contains(searchstring)
+                    print ("ID of view: " + str(viewid) + "to text: " + str(searchstring))
+
                     if viewid is not None:
                         if self.vc.findViewById(viewid) is not None:
                             print "Wait Clever : End"
+                            self.vc.dump(window=-1)
                             found= True
                             return
                     else:
                         if self.vc.findViewWithText(searchstring) is not None:
                             print "Wait Clever : End"
+                            self.vc.dump(window=-1)
                             found= True
                             return
                 elif switcher.get(mode) == 3:
@@ -386,6 +465,7 @@ class Device(threading.Thread, BaseDevice):
                             print ("error in view")
 
                 roundcounter = roundcounter +1
+        return
 
     def get_uniqueids_from_views(self, views):
         ids = []
@@ -469,7 +549,7 @@ class Device(threading.Thread, BaseDevice):
 
     def check_if_screen_contains(self, tosearch, ignoretextfields=False):
         result = None
-        Device.lock.acquire()
+        #Device.lock.acquire()
         # list =
         print "Views"
         for entry in self.vc.views:
@@ -490,7 +570,7 @@ class Device(threading.Thread, BaseDevice):
                     if id is not None:
                         result = id
                         return result
-        Device.lock.release()
+        #Device.lock.release()
         return result
 
     def _get_proper_viewid(self, entry, tosearch):
@@ -646,9 +726,9 @@ class Device(threading.Thread, BaseDevice):
             self.touch_by_text(Device.wifissid, True,wait=False)
             self.wait_clever(u'Passwort eingeben', mode="text")
             self.type_by_text(Device.wifipw, u'Passwort eingeben', True, wait=False)
-            self.wait_clever(sec=0.25)
+            self.wait(0.25)
             self.device.press('KEYCODE_ENTER')
-            self.wait_clever(sec=0.15)
+            self.wait(0.15)
             result = True
         except:
             result = False
@@ -712,7 +792,28 @@ class Device(threading.Thread, BaseDevice):
         self.destroy_current_running_app()
         return result
 
-    # TODO
+    def create_google_account_new(self):
+        result = False
+        timebeforetask = datetime.now()
+
+        try:
+            self.vc.dump(window=-1)
+            if self.start_creating_google_acc():
+                self.wait_clever(searchstring=u'Für mich selbst', mode="text")
+                self.vc.findViewWithTextOrRaise(u'Für mich selbst').touch()
+
+            result = True
+
+        except:
+            result = False
+
+        timeaftertask = datetime.now()
+        if result:
+            timediff = timeaftertask - timebeforetask
+            print "DEBUGMARKUS - TIME DIFFERENCE || create_google_account_new || needed time: "+str(timediff)
+        self.destroy_current_running_app()
+        return result
+
     def create_google_account(self):
         self.wait(1)
         result = False
@@ -918,12 +1019,19 @@ class Device(threading.Thread, BaseDevice):
 
     def start_play_store(self, appname):
         result = self._start_intent('android.intent.action.VIEW -d market://details?id=' + appname)
-        self.wait(3)
+        self.wait(1.5)
         if result:
             try:
+                if self.vc.findViewWithText(
+                        u'Zum Aufrufen dieser Inhalte musst du eine Webbrowser-App installieren und einrichten.') is not None:
+                    self.wait(0.25)
+                    self.vc.findViewWithTextOrRaise(u'OK')
+                    self.wait(0.25)
                 if self.find_by_text(u'Öffnen mit'):
-                    self.touch_by_text(u'Google Play Store', True)
-                    self.touch_by_text(u'Immer', True)
+                    self.touch_by_text(u'Google Play Store', androidviewclientvariant=True, wait=False)
+                    self.wait_clever(searchstring=u'Immer', mode="text")
+                    self.touch_by_text(u'Immer', androidviewclientvariant=True, wait=False)
+                self.wait_clever(searchstring="Installieren", mode="text")
                 result = True
             except:
                 result = False
@@ -933,11 +1041,16 @@ class Device(threading.Thread, BaseDevice):
 
     def start_creating_google_acc(self):
         result = self._start_intent('android.settings.ADD_ACCOUNT_SETTINGS --es "account_types" "google.com"')
-        self.wait(1)
-        if result:
-            self.touch_by_text("Google", True)
-            return True
-        else:
+        #self.wait(1)
+        try:
+            if result:
+                self.wait_clever(searchstring="Google", mode="text")
+                self.touch_by_text("Google", androidviewclientvariant=True, wait=False)
+                self.wait_clever(searchstring=u'Konto erstellen', mode="text")
+                return True
+            else:
+                return False
+        except:
             return False
 
     def _start_intent(self, intentstr):
@@ -973,7 +1086,8 @@ class Device(threading.Thread, BaseDevice):
     def increase_screen_brigthness(self, times=1):
         for i in range(times):
             self.device.shell('input keyevent 221')
-            self.wait()
+            self.wait_clever(justrefresh=True)
+        return True
 
     # Increase standard volume with keyevent
     def increase_standard_volume_keyevent(self, times=1):
@@ -1001,14 +1115,15 @@ class Device(threading.Thread, BaseDevice):
         app = self.get_current_packagename()
         if app is not None:
             self.device.shell('am force-stop ' + app)
-            self.wait(2)
+            self.wait(1)
             return True
         else:
             return False
 
     def _check_if_app_is_installed(self, packagename):
         package = self.device.shell('pm list packages | grep ' + packagename)
-        if package in packagename:
+        print "DEBUGMARKUS - is app: "+str(packagename)+" installed? "+str(package)
+        if packagename in package:
             return True
         else:
             return False
@@ -1044,7 +1159,7 @@ class Device(threading.Thread, BaseDevice):
         result = False
         self.wait(1)
         self.device.shell('am start -n com.talex.mytaxidriver/.activities.main.MainActivity')
-        self.wait(3)
+        self.wait(2)
         self._check_permission_app()
         self.type_by_id(self.pairdriverappname, "com.talex.mytaxidriver:id/nickET")
         self.type_by_id(self.pairdriverapppw, "com.talex.mytaxidriver:id/passET")
@@ -1058,8 +1173,60 @@ class Device(threading.Thread, BaseDevice):
         self.destroy_current_running_app()
         return result
 
+    def download_app_new(self, appname):
+        if appname == '' or appname == "":
+            return True
+        result = False
+        timebeforetask = datetime.now()
+        try:
+            self.wait(0.5)
+            if self.start_play_store(appname):
+                #self.wait_clever(searchstring="Installieren", mode="text")
+                self.touch_by_text("Installieren", androidviewclientvariant=True, wait=False)
+                #self.wait_clever(searchstring="u'Kontoeinrichtung abschließen'", mode="text")
+                self.wait(1)
+                if self.vc.findViewWithText(u'Kontoeinrichtung abschließen') is not None:
+                    #try:
+                    self.touch_by_text(u'WEITER', wait=False)
+                    self.wait_clever(searchstring=u'ÜBERSPRINGEN', mode="owntext")
+                    self.touch_by_text(u'ÜBERSPRINGEN', androidviewclientvariant=True, wait=False)
+                    self.wait(0.25)
+                        #self.device.touchDip(166.86, 797.71, 0)
+                        #self.wait_clever(sec=0.25)
+                        #self.device.touchDip(222.86, 776.0, 0)
+                        # self.touch_by_text(u'WEITER')
+                        # self.touch_by_text(u'ÜBERSPRINGEN', True)
+                   # except:
+                   #     self.device.touchDip(166.86, 797.71, 0)
+                   #     self.wait_clever(sec=0.25)
+                    #    self.device.touchDip(222.86, 776.0, 0)
+                #if self.find_by_text(u'Weiter') is not False:
+                #    try:
+                #        self.touch_by_text(u'WEITER', wait=False)
+                #        self.wait_clever(searchstring="u'ÜBERSPRINGEN'", mode="text")
+                #        self.touch_by_text(u'ÜBERSPRINGEN', androidviewclientvariant=True, wait=False)
+                #    except:
+                #        print ("")
+                # wait till its installed
+                self.wait_clever(isinstalled=appname)
+                if self._check_if_app_is_installed(str(appname)):
+                    result = True
+        except:
+            result = False
+
+        timeaftertask = datetime.now()
+        if result:
+            timediff = timeaftertask - timebeforetask
+            print "DEBUGMARKUS - TIME DIFFERENCE || download_app_new || needed time: "+str(timediff)
+
+        self.destroy_current_running_app()
+        #self.go_to_home_screen()
+        self.wait(1)
+        return result
+
     def download_app(self, appname):
         result = False
+        timebeforetask = datetime.now()
         self.vc.dump(window=-1)
         print "should start play store with: " + str(appname)
         self.start_play_store(appname)
@@ -1075,11 +1242,13 @@ class Device(threading.Thread, BaseDevice):
         install = self.find_by_text("Installieren")
         if install:
             self.touch_by_text("Installieren", True)
-            if self.vc.findViewWithText(u'Kontoeinrichtung abschließen') is not False:
+            if self.vc.findViewWithText(u'Kontoeinrichtung abschließen') is not None:
                 try:
-                    self.device.touchDip(166.86, 797.71, 0)
-                    self.wait()
-                    self.device.touchDip(222.86, 776.0, 0)
+                    self.touch_by_text(u'WEITER')
+                    self.touch_by_text(u'ÜBERSPRINGEN')
+                    #self.device.touchDip(166.86, 797.71, 0)
+                    #self.wait()
+                   # self.device.touchDip(222.86, 776.0, 0)
                     # self.touch_by_text(u'WEITER')
                     # self.touch_by_text(u'ÜBERSPRINGEN', True)
                 except:
@@ -1088,20 +1257,25 @@ class Device(threading.Thread, BaseDevice):
                     self.device.touchDip(222.86, 776.0, 0)
 
                     print ("Error")
-            if self.find_by_text(u'Weiter') is not False:
-                try:
-                    self.touch_by_text(u'WEITER')
-                    self.touch_by_text(u'ÜBERSPRINGEN')
-                except:
-                    print ("Error")
+            #if self.find_by_text(u'Weiter') is not False:
+            #    try:
+            #        self.touch_by_text(u'WEITER')
+            #        self.touch_by_text(u'ÜBERSPRINGEN')
+            #    except:
+            #        print ("Error")
             result = True
             self.wait(10)
 
         isinstalled = self._check_if_app_is_installed(appname)
         if isinstalled:
             result = True
-            self.wait()
         self.wait()
+
+        timeaftertask = datetime.now()
+        if result:
+            timediff = timeaftertask - timebeforetask
+            print "DEBUGMARKUS - TIME DIFFERENCE || download_app || needed time: "+str(timediff)
+
         self.destroy_current_running_app()
         self.wait(1)
         return result

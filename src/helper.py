@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import sys
-
+from datetime import datetime
 from ConfigParser import SafeConfigParser
 from enum import Enum
 
@@ -26,7 +26,7 @@ def print_and_exit_script(success=False):
 
 def debug_print(value, log=True):
     log_file = open('./../res/log.txt', 'a+')
-    value = "---- "+str(value)+ " ----\n"
+    value = "---- Time: "+ str(datetime.now()) +" --- "+str(value)+ " ----\n"
     paragraph = "---------------------\n"
     if FILELOG and log:
         log_file.flush()
@@ -145,6 +145,10 @@ class Model:
         self.configurescreenbrightness = False
         self.disabledevoptions = False
         self.rebootdevicewhenfinished = False
+
+        # configure device lock
+        self.enablelockdevice = False
+        self.lockpattern = -1
 
         # which mode should start ? (-c = Config Mode)
         if len(sys.argv) > 0 and sys.argv[1] == '-c':
